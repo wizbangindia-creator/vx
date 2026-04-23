@@ -1,38 +1,79 @@
-# VisaXpert (vx) — Cloned Project PRD
+# VisaXpert — PRD
 
-## Problem Statement
-Cloned from https://github.com/techvisaxpert-sketch/vx and iteratively extended.
+## Original problem statement
+"Clone https://github.com/wizbangindia-creator/vx into /app and make it working."
+Follow-up: On the main landing-page form, replace the "City" input with a
+"Preferred Counselling Mode" dropdown (Online — Google/Zoom, or Offline Branch
+Visit). When Offline is chosen, also show a "Choose Your Nearest Branch"
+dropdown listing the four India branches. Send WhatsApp messages to the user
+after submission. In the dashboard, add a "WhatsApp Config" area so the admin
+can create templates per flow (e.g. "Main Page Online Counselling",
+"Main Page Offline Counselling"); the admin will fill in the real BSP template
+names later.
 
-## Tech Stack
-- FastAPI + MongoDB backend (`/app/backend/server.py`)
-- React (CRA + CRACO + Tailwind) frontend
-- Pages: LandingPage, UniversityChangePage, GermanyFairPage, Dashboard
+## Stack
+- Backend: FastAPI + Motor (MongoDB) on :8001
+- Frontend: React (CRA + craco) on :3000, Tailwind + Radix UI
+- Integrations (pre-existing, hot-pluggable via env vars): Resend e-mail,
+  Google Sheets CSV sync, Meta (Facebook) Lead-Ads webhook, Google Ads webhook,
+  TechMet IVR webhook, nirvachanguru WhatsApp BSP (Meta Cloud API shape).
 
-## What's Been Implemented
+## User personas
+- Prospective study-abroad student (fills the main landing form).
+- University-change student (separate page /university-change).
+- Germany-Fair attendee (separate page).
+- Admin / branch operator (dashboard login) — manages leads, reviews, logos,
+  WhatsApp templates & message log.
 
-### 2026-04-22 (Iter 1)
-- Repo cloned into `/app` (preserved `.env`, `.git`, `.emergent`)
-- Landing CEO video: `object-cover` -> `object-contain` (no more zoom/crop)
-- Logo slider sped up (`.animate-scroll` 8s -> 5s)
-- University Change page: hardcoded testimonials removed; reviews now sliding marquee
-- Germany Fair page: added Cologne Business School (custom SVG); removed EU Business & Global University System logos; reviews now sliding marquee
-- Dashboard AddReviewModal: single-page select -> multi-page checkboxes; one submit creates 1 review per selected page
+## Architecture highlights
+- Leads are unified in `db.leads` regardless of channel (webhook, form, IVR,
+  Google Sheets sync, Meta leadgen).
+- WhatsApp automation has two collections:
+  - `db.whatsapp_templates` — admin-editable templates, now with a `category`
+    discriminator (germany_fair | main_online | main_offline).
+  - `db.whatsapp_messages` — scheduled / sent / failed send log; a 60-second
+    background loop (`_scheduler_loop`) dispatches pending messages via BSP.
 
-### 2026-04-22 (Iter 2)
-- **Backend**: new `partner_logos` collection + endpoints
-  - `GET /api/partner-logos?page=<page>` (public)
-  - `GET/POST/PATCH/DELETE /api/dashboard/partner-logos[/id[/toggle]]` (admin)
-  - Accepts multipart upload (file + name + pages csv), 3MB limit, PNG/JPEG/WebP/GIF/SVG
-- **Dashboard**: new "Partner Logos" tab with `PartnerLogosManager` + `AddPartnerLogoModal` (multi-page checkboxes like reviews). Existing "Logos" renamed "Header Logo" for clarity.
-- **Public pages**: each page fetches `partner-logos?page=<its_page>` and merges into existing sliding carousel (Landing "Our Partner Universities", UniversityChange "Universities We Work With", GermanyFair "Participating Universities").
-- **Germany Fair footer**: "Fair Locations" section replaced with "Our Branches" showing all 4 branches with full address + tel link (Jammu, Pathankot, Amritsar, Ludhiana).
+## What's been implemented (2026-04-23)
+- Cloned the GitHub repo into `/app`, preserving `.git` / `.emergent`.
+- Installed backend deps (including the missing `resend` package) and frontend
+  deps; both services start cleanly under supervisor.
+- **Main landing form**: City input replaced with a required "Preferred
+  Counselling Mode" dropdown. When "Offline Branch Visit" is chosen a second
+  required "Choose Your Nearest Branch" dropdown appears (Ludhiana, Amritsar,
+  Pathankot, Jammu). Submit payload now carries `counselling_mode` +
+  `preferred_branch`; validation is enforced on both client and server.
+- **Lead record**: `city` is auto-derived — "Online (Google/Zoom)" for online,
+  branch name for offline. `extra_data.counselling_mode` and
+  `extra_data.preferred_branch` are persisted so dashboard reports can filter
+  on the raw choice.
+- **WhatsApp templates**: added `category` field (germany_fair | main_online |
+  main_offline, default germany_fair for backward-compat). Germany-Fair
+  templates still schedule multi-touch reminders; main_* templates fire
+  immediately on form submit only.
+- **Param sources** extended with `preferred_branch` and `counselling_mode`
+  placeholders so templates can use `{{1}} = preferred_branch` etc.
+- **Dashboard → WhatsApp Config**: renamed header, updated help text, added a
+  Category select in the template form (Germany Fair / Main Page - Online /
+  Main Page - Offline) and a category badge on each template card.
+- End-to-end verified via curl: online and offline form submissions enqueue
+  the matching category templates in `db.whatsapp_messages` with fully
+  resolved body/header params.
 
-## Testing (Iter 2)
-- Backend pytest: 19/19 pass — `/app/backend/tests/test_reviews_partner_logos.py`
-- Frontend E2E: login -> Reviews (multi-page) -> Partner Logos upload -> verified on all 3 public pages -> footer branches verified.
+## Config knobs (via env)
+- `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_TEMPLATE_NAME`
+- `RESEND_API_KEY`, `SENDER_EMAIL`
+- `GOOGLE_SHEET_WEBHOOK`, `GOOGLE_SHEETS_ID`, `GOOGLE_SHEETS_RANGE`
+- `FB_APP_SECRET`, `FB_VERIFY_TOKEN`
 
-## Backlog / Next
-- Split Dashboard.jsx (~2700 lines) — move PartnerLogos* to its own file
-- Extract `<PageMultiSelect>` shared component (used by reviews + partner logos)
-- Optional: partial-success toast for multi-page review create
-- Optional: early Content-Length rejection for large logo uploads
+## Prioritized backlog / Next tasks
+- P1: User to create the actual BSP-approved WhatsApp templates and paste the
+  real `wa_template_name`s + `body_params` via Dashboard → WhatsApp Config for
+  both "Main Page - Online Counselling" and "Main Page - Offline Counselling".
+- P1: Add `WHATSAPP_ACCESS_TOKEN` to `/app/backend/.env` so the scheduler
+  starts dispatching real sends (currently messages queue up as "pending").
+- P2: Dashboard leads table / filters could surface counselling_mode +
+  preferred_branch as dedicated columns (currently visible only in the city
+  column and extra_data).
+- P2: Optional extra category "Main Page - Follow-Up 24h" with a delayed
+  trigger, re-using the existing scheduler.

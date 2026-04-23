@@ -1629,9 +1629,22 @@ const PLACEHOLDER_OPTIONS = [
   { value: "full_name", label: "{full_name} — Full name" },
   { value: "city", label: "{city} — Lead's home city" },
   { value: "preferred_city", label: "{preferred_city} — Fair location chosen (e.g. Jammu)" },
+  { value: "preferred_branch", label: "{preferred_branch} — Branch chosen for offline visit" },
+  { value: "counselling_mode", label: "{counselling_mode} — online / offline" },
   { value: "event_date", label: "{event_date} — Fair date (e.g. 25th May 2026)" },
   { value: "phone", label: "{phone} — Phone number" },
 ];
+
+const CATEGORY_OPTIONS = [
+  { value: "germany_fair", label: "Germany Fair" },
+  { value: "main_online", label: "Main Page - Online Counselling" },
+  { value: "main_offline", label: "Main Page - Offline Counselling" },
+];
+
+const CATEGORY_LABELS = CATEGORY_OPTIONS.reduce((acc, o) => {
+  acc[o.value] = o.label;
+  return acc;
+}, {});
 
 const TRIGGER_LABELS = {
   immediate: "Immediately (on form submit)",
@@ -1725,9 +1738,9 @@ function WhatsAppManager({ credentials }) {
     <div className="space-y-6" data-testid="whatsapp-manager">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">WhatsApp Automation</h2>
+          <h2 className="text-xl font-bold text-slate-900">WhatsApp Config</h2>
           <p className="text-sm text-slate-500 mt-1">
-            Manage templates and scheduled messages for Germany Fair leads
+            Manage message templates and scheduled sends for every lead flow (Main Page Online / Offline, Germany Fair)
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -1767,7 +1780,12 @@ function WhatsAppManager({ credentials }) {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900">
             <p className="font-medium mb-1">How it works</p>
             <ul className="list-disc pl-5 space-y-1 text-blue-800">
-              <li>Each active template gets evaluated on every new <strong>Germany Fair</strong> lead.</li>
+              <li>Each template is tied to a <strong>Category</strong> that picks which lead flow it fires on:
+                <code className="bg-white px-1 rounded mx-1">Main Page - Online</code>,
+                <code className="bg-white px-1 rounded mx-1">Main Page - Offline</code>, or
+                <code className="bg-white px-1 rounded mx-1">Germany Fair</code>.
+              </li>
+              <li>Main-page templates send <strong>immediately</strong> after the form submit; Germany Fair supports scheduled days-before / on-event reminders.</li>
               <li><strong>wa_template_name</strong> must match an <em>approved</em> template in your WhatsApp BSP (nirvachanguru).</li>
               <li>Body parameters fill the template's <code>{'{{1}}'}</code>, <code>{'{{2}}'}</code> etc. in order.</li>
               <li>Use <code>static:your text</code> to pass a literal string.</li>
@@ -1793,6 +1811,9 @@ function WhatsAppManager({ credentials }) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-2">
                         <h4 className="font-semibold text-slate-900">{t.name}</h4>
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                          {CATEGORY_LABELS[t.category || "germany_fair"] || t.category || "Germany Fair"}
+                        </span>
                         <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
                           {t.wa_template_name}
                         </span>
@@ -1972,6 +1993,7 @@ function WhatsAppTemplateForm({ credentials, template, onClose, onSaved }) {
     days_before: template?.days_before ?? 1,
     send_hour_utc: template?.send_hour_utc ?? 4,
     active: template?.active ?? true,
+    category: template?.category || "main_online",
   }));
   const [saving, setSaving] = useState(false);
   const [testPhone, setTestPhone] = useState("");
@@ -2052,6 +2074,28 @@ function WhatsAppTemplateForm({ credentials, template, onClose, onSaved }) {
   return (
     <Modal onClose={onClose} title={isEdit ? "Edit Template" : "New WhatsApp Template"} large>
       <form onSubmit={handleSubmit} className="space-y-5">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Category *</label>
+          <select
+            value={form.category}
+            onChange={(e) => {
+              const newCat = e.target.value;
+              // main_* categories only use immediate trigger
+              const newTrigger = newCat === "germany_fair" ? form.trigger_type : "immediate";
+              setForm({ ...form, category: newCat, trigger_type: newTrigger });
+            }}
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+            data-testid="wa-form-category"
+          >
+            {CATEGORY_OPTIONS.map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          <p className="text-xs text-slate-400 mt-1">
+            Chooses which lead flow fires this template.
+          </p>
+        </div>
+
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Display Name *</label>
@@ -2098,41 +2142,49 @@ function WhatsAppTemplateForm({ credentials, template, onClose, onSaved }) {
           </div>
         </div>
 
-        <div className="border-t border-slate-200 pt-4">
-          <label className="block text-sm font-medium text-slate-700 mb-2">When to send</label>
-          <div className="grid md:grid-cols-3 gap-3">
-            <select
-              value={form.trigger_type}
-              onChange={(e) => setForm({ ...form, trigger_type: e.target.value })}
-              className="px-3 py-2 border border-slate-200 rounded-lg text-sm"
-              data-testid="wa-form-trigger"
-            >
-              <option value="immediate">Immediately on signup</option>
-              <option value="days_before">X days before event</option>
-              <option value="same_day">On the event day</option>
-            </select>
-            {form.trigger_type === "days_before" && (
-              <input
-                type="number" min="0" max="30" value={form.days_before}
-                onChange={(e) => setForm({ ...form, days_before: e.target.value })}
-                placeholder="Days before"
+        {form.category === "germany_fair" ? (
+          <div className="border-t border-slate-200 pt-4">
+            <label className="block text-sm font-medium text-slate-700 mb-2">When to send</label>
+            <div className="grid md:grid-cols-3 gap-3">
+              <select
+                value={form.trigger_type}
+                onChange={(e) => setForm({ ...form, trigger_type: e.target.value })}
                 className="px-3 py-2 border border-slate-200 rounded-lg text-sm"
-                data-testid="wa-form-days"
-              />
-            )}
-            {form.trigger_type !== "immediate" && (
-              <div className="flex items-center gap-2">
+                data-testid="wa-form-trigger"
+              >
+                <option value="immediate">Immediately on signup</option>
+                <option value="days_before">X days before event</option>
+                <option value="same_day">On the event day</option>
+              </select>
+              {form.trigger_type === "days_before" && (
                 <input
-                  type="number" min="0" max="23" value={form.send_hour_utc}
-                  onChange={(e) => setForm({ ...form, send_hour_utc: e.target.value })}
-                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm w-24"
-                  data-testid="wa-form-hour"
+                  type="number" min="0" max="30" value={form.days_before}
+                  onChange={(e) => setForm({ ...form, days_before: e.target.value })}
+                  placeholder="Days before"
+                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  data-testid="wa-form-days"
                 />
-                <span className="text-xs text-slate-500">hour UTC (4 = 9:30 AM IST)</span>
-              </div>
-            )}
+              )}
+              {form.trigger_type !== "immediate" && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number" min="0" max="23" value={form.send_hour_utc}
+                    onChange={(e) => setForm({ ...form, send_hour_utc: e.target.value })}
+                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm w-24"
+                    data-testid="wa-form-hour"
+                  />
+                  <span className="text-xs text-slate-500">hour UTC (4 = 9:30 AM IST)</span>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="border-t border-slate-200 pt-4">
+            <p className="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+              <span className="font-medium">Trigger:</span> Sends immediately when the user submits the main landing page form.
+            </p>
+          </div>
+        )}
 
         <div className="border-t border-slate-200 pt-4">
           <div className="flex items-center justify-between mb-2">

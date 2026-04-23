@@ -512,7 +512,8 @@ export default function LandingPage() {
     name: "",
     email: "",
     phone: "",
-    city: "",
+    counselling_mode: "",
+    preferred_branch: "",
     country_of_interest: "",
     other_country: "",
   });
@@ -572,10 +573,14 @@ export default function LandingPage() {
       newErrors.phone = "Please enter a valid 10 or 12 digit phone number";
     }
     
-    if (!formData.city.trim()) {
-      newErrors.city = "Please enter your city";
+    if (!formData.counselling_mode) {
+      newErrors.counselling_mode = "Please choose your preferred counselling mode";
     }
-    
+
+    if (formData.counselling_mode === "offline" && !formData.preferred_branch) {
+      newErrors.preferred_branch = "Please choose your nearest branch";
+    }
+
     if (!formData.country_of_interest) {
       newErrors.country_of_interest = "Please select a country";
     }
@@ -600,9 +605,10 @@ export default function LandingPage() {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
-        city: formData.city,
-        country_of_interest: formData.country_of_interest === "Other" 
-          ? formData.other_country 
+        counselling_mode: formData.counselling_mode,
+        preferred_branch: formData.counselling_mode === "offline" ? formData.preferred_branch : "",
+        country_of_interest: formData.country_of_interest === "Other"
+          ? formData.other_country
           : formData.country_of_interest
       };
       await axios.post(`${API}/enquiry`, submitData);
@@ -611,7 +617,8 @@ export default function LandingPage() {
       trackEvent('form_submit', { 
         location: 'main_form', 
         country: submitData.country_of_interest,
-        city: submitData.city
+        counselling_mode: submitData.counselling_mode,
+        preferred_branch: submitData.preferred_branch
       });
       
       // Track Google Ads Conversion
@@ -619,7 +626,7 @@ export default function LandingPage() {
       
       setSubmittedName(formData.name.split(' ')[0]);
       setShowThankYou(true);
-      setFormData({ name: "", email: "", phone: "", city: "", country_of_interest: "", other_country: "" });
+      setFormData({ name: "", email: "", phone: "", counselling_mode: "", preferred_branch: "", country_of_interest: "", other_country: "" });
       setErrors({});
     } catch (error) {
       const errorMessage = error.response?.data?.detail || "Something went wrong. Please try again.";
@@ -808,21 +815,47 @@ export default function LandingPage() {
                   
                   <div>
                     <label className="block text-sm font-medium text-[#0F172A] mb-2">
-                      Your City <span className="text-red-500">*</span>
+                      Preferred Counselling Mode <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      name="city"
-                      value={formData.city}
+                    <select
+                      name="counselling_mode"
+                      value={formData.counselling_mode}
                       onChange={handleInputChange}
-                      placeholder="Enter your city"
-                      className={`input-field ${errors.city ? "border-red-500" : ""}`}
-                      data-testid="input-city"
-                    />
-                    {errors.city && (
-                      <p className="text-red-500 text-sm mt-1">{errors.city}</p>
+                      className={`select-field ${errors.counselling_mode ? "border-red-500" : ""}`}
+                      data-testid="select-counselling-mode"
+                    >
+                      <option value="">Choose your counselling mode</option>
+                      <option value="online">Online (Google / Zoom)</option>
+                      <option value="offline">Offline Branch Visit</option>
+                    </select>
+                    {errors.counselling_mode && (
+                      <p className="text-red-500 text-sm mt-1">{errors.counselling_mode}</p>
                     )}
                   </div>
+
+                  {formData.counselling_mode === "offline" && (
+                    <div>
+                      <label className="block text-sm font-medium text-[#0F172A] mb-2">
+                        Choose Your Nearest Branch <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        name="preferred_branch"
+                        value={formData.preferred_branch}
+                        onChange={handleInputChange}
+                        className={`select-field ${errors.preferred_branch ? "border-red-500" : ""}`}
+                        data-testid="select-preferred-branch"
+                      >
+                        <option value="">Select a branch</option>
+                        <option value="Ludhiana">Ludhiana</option>
+                        <option value="Amritsar">Amritsar</option>
+                        <option value="Pathankot">Pathankot</option>
+                        <option value="Jammu">Jammu</option>
+                      </select>
+                      {errors.preferred_branch && (
+                        <p className="text-red-500 text-sm mt-1">{errors.preferred_branch}</p>
+                      )}
+                    </div>
+                  )}
                   
                   <div>
                     <label className="block text-sm font-medium text-[#0F172A] mb-2">

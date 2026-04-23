@@ -94,32 +94,60 @@ logger = logging.getLogger(__name__)
 
 # ==================== MODELS ====================
 
+MAIN_LANDING_BRANCHES = {"Ludhiana", "Amritsar", "Pathankot", "Jammu"}
+
+
 class EnquiryCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     email: str = Field(..., min_length=5, max_length=100)
     phone: str = Field(..., min_length=10, max_length=12)
-    city: str = Field(..., min_length=2, max_length=100)
+    # City is now derived from counselling_mode / preferred_branch; kept optional
+    # for backward compatibility with any legacy callers.
+    city: Optional[str] = Field(default=None, max_length=100)
     country_of_interest: str
-    
+    # New fields for counselling preference
+    counselling_mode: str = Field(..., description="'online' or 'offline'")
+    preferred_branch: Optional[str] = Field(default=None, max_length=100)
+
     @field_validator('email')
     @classmethod
     def validate_email(cls, v):
         if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', v):
             raise ValueError('Please enter a valid email address')
         return v
-    
+
     @field_validator('phone')
     @classmethod
     def validate_phone(cls, v):
         if not re.match(r'^\d{10}$', v) and not re.match(r'^\d{12}$', v):
             raise ValueError('Please enter a valid 10 or 12 digit phone number')
         return v
-    
+
     @field_validator('country_of_interest')
     @classmethod
     def validate_country(cls, v):
         if not v or len(v.strip()) < 2:
             raise ValueError('Please enter a valid country name')
+        return v
+
+    @field_validator('counselling_mode')
+    @classmethod
+    def validate_mode(cls, v):
+        v = (v or "").strip().lower()
+        if v not in {"online", "offline"}:
+            raise ValueError("counselling_mode must be 'online' or 'offline'")
+        return v
+
+    @field_validator('preferred_branch')
+    @classmethod
+    def validate_branch(cls, v):
+        if v is None:
+            return v
+        v = v.strip()
+        if v == "":
+            return None
+        if v not in MAIN_LANDING_BRANCHES:
+            raise ValueError(f"preferred_branch must be one of {sorted(MAIN_LANDING_BRANCHES)}")
         return v
 
 
@@ -496,41 +524,71 @@ async def health_check():
 @api_router.post("/enquiry", response_model=EnquiryResponse)
 async def create_enquiry(input: EnquiryCreate):
     created_at = datetime.now(timezone.utc).isoformat()
-    
+
+    mode = input.counselling_mode  # already normalised to 'online'/'offline'
+    preferred_branch = input.preferred_branch or ""
+
+    # Require a branch when mode is offline
+    if mode == "offline" and not preferred_branch:
+        raise HTTPException(
+            status_code=422,
+            detail="Please choose your nearest branch for offline counselling.",
+        )
+
+    # Derive a human-readable city value so existing dashboard/exports keep working
+    if mode == "online":
+        city_value = "Online (Google/Zoom)"
+    else:
+        city_value = preferred_branch or (input.city or "")
+
     lead_data = {
         "name": input.name,
         "email": input.email,
         "phone": input.phone,
-        "city": input.city,
+        "city": city_value,
         "country": input.country_of_interest,
         "source": "website",
-        "platform": "website"
+        "platform": "website",
+        "extra_data": {
+            "counselling_mode": mode,
+            "preferred_branch": preferred_branch,
+        },
     }
-    
+
     try:
         lead_id = await save_lead_to_db(lead_data)
     except Exception as e:
         logger.error(f"Database error: {e}")
         lead_id = str(uuid.uuid4())
-    
+
+    # Enqueue WhatsApp messages for active templates that match the mode
+    try:
+        asyncio.create_task(
+            _enqueue_main_landing_messages(lead_id, {**lead_data, "phone": input.phone}, mode)
+        )
+    except Exception as e:
+        logger.error(f"Failed to enqueue main-landing WhatsApp: {e}")
+
     # Also send to Google Sheets
     sheets_data = {
         "name": input.name,
         "email": input.email,
         "phone": input.phone,
-        "city": input.city,
+        "city": city_value,
         "country": input.country_of_interest,
         "date": created_at,
-        "source": "website"
+        "source": "website",
+        "counselling_mode": mode,
+        "preferred_branch": preferred_branch,
     }
     await send_to_google_sheets(sheets_data)
-    
+
     return EnquiryResponse(
         id=lead_id,
         name=input.name,
         email=input.email,
         phone=input.phone,
-        city=input.city,
+        city=city_value,
         country_of_interest=input.country_of_interest,
         created_at=created_at,
         status="submitted"
@@ -1999,11 +2057,16 @@ GERMANY_FAIR_EVENT_DATES = {
 }
 
 TRIGGER_TYPES = {"immediate", "days_before", "same_day"}
+TEMPLATE_CATEGORIES = {"germany_fair", "main_online", "main_offline"}
 PARAM_SOURCES = {
     "name": lambda lead: (lead.get("name") or "there").split(" ")[0],
     "full_name": lambda lead: lead.get("name") or "",
     "city": lambda lead: lead.get("city") or "",
     "preferred_city": lambda lead: lead.get("preferred_city") or "",
+    "preferred_branch": lambda lead: (lead.get("extra_data") or {}).get("preferred_branch")
+        or lead.get("preferred_branch") or "",
+    "counselling_mode": lambda lead: (lead.get("extra_data") or {}).get("counselling_mode")
+        or lead.get("counselling_mode") or "",
     "event_date": lambda lead: _fair_event_date_str(lead.get("preferred_city") or ""),
     "phone": lambda lead: lead.get("phone") or "",
 }
@@ -2032,12 +2095,23 @@ class WhatsAppTemplate(BaseModel):
     days_before: int = Field(default=0, ge=0, le=30)  # only for days_before; same_day=0
     send_hour_utc: int = Field(default=4, ge=0, le=23)  # 04:00 UTC = 09:30 IST
     active: bool = Field(default=True)
+    # Which lead flow this template belongs to. Kept backward-compatible (defaults
+    # to germany_fair so existing templates keep firing for Germany Fair leads).
+    category: str = Field(default="germany_fair")
 
     @field_validator("trigger_type")
     @classmethod
     def validate_trigger(cls, v):
         if v not in TRIGGER_TYPES:
             raise ValueError(f"trigger_type must be one of {TRIGGER_TYPES}")
+        return v
+
+    @field_validator("category")
+    @classmethod
+    def validate_category(cls, v):
+        v = (v or "germany_fair").strip()
+        if v not in TEMPLATE_CATEGORIES:
+            raise ValueError(f"category must be one of {sorted(TEMPLATE_CATEGORIES)}")
         return v
 
 
@@ -2101,7 +2175,11 @@ async def _enqueue_germany_fair_messages(lead_id: str, lead_data: dict):
     preferred = (lead_data.get("preferred_city") or "").strip()
     event_dt = GERMANY_FAIR_EVENT_DATES.get(preferred)
 
-    cursor = db.whatsapp_templates.find({"active": True}, {"_id": 0})
+    # Only germany_fair category templates (missing category = legacy => germany_fair)
+    cursor = db.whatsapp_templates.find(
+        {"active": True, "$or": [{"category": "germany_fair"}, {"category": {"$exists": False}}]},
+        {"_id": 0},
+    )
     templates = await cursor.to_list(length=200)
     enqueued = 0
     for tpl in templates:
@@ -2152,6 +2230,61 @@ async def _enqueue_germany_fair_messages(lead_id: str, lead_data: dict):
         await db.whatsapp_messages.insert_one(doc)
         enqueued += 1
     logger.info(f"Enqueued {enqueued} WhatsApp messages for lead {lead_id} ({preferred})")
+    return enqueued
+
+
+async def _enqueue_main_landing_messages(lead_id: str, lead_data: dict, mode: str):
+    """
+    On main landing-page lead, enqueue WhatsApp messages for all active templates
+    whose category matches the chosen counselling mode ('online' -> main_online,
+    'offline' -> main_offline). Only 'immediate' triggers are honoured here since
+    there is no fixed future event date for this flow.
+    """
+    if db is None:
+        return 0
+    category = f"main_{mode}"  # main_online or main_offline
+    now = datetime.now(timezone.utc)
+
+    cursor = db.whatsapp_templates.find(
+        {"active": True, "category": category},
+        {"_id": 0},
+    )
+    templates = await cursor.to_list(length=200)
+    enqueued = 0
+    for tpl in templates:
+        trigger = tpl.get("trigger_type", "immediate")
+        # For main-landing flow only "immediate" triggers make sense; skip others
+        if trigger != "immediate":
+            continue
+
+        body_vals = [_resolve_param(src, lead_data) for src in tpl.get("body_params", [])]
+        header_val = _resolve_param(tpl["header_param"], lead_data) if tpl.get("header_param") else None
+
+        doc = {
+            "msg_id": str(uuid.uuid4()),
+            "lead_id": lead_id,
+            "phone": lead_data.get("phone", ""),
+            "name": lead_data.get("name", ""),
+            "preferred_city": (lead_data.get("extra_data") or {}).get("preferred_branch", ""),
+            "template_id": tpl.get("template_id", ""),
+            "template_display_name": tpl.get("name", ""),
+            "wa_template_name": tpl.get("wa_template_name", ""),
+            "language_code": tpl.get("language_code", "en"),
+            "body_params": body_vals,
+            "header_param": header_val,
+            "trigger_type": trigger,
+            "category": category,
+            "scheduled_at": now,
+            "status": "pending",
+            "attempts": 0,
+            "sent_at": None,
+            "error": None,
+            "response": None,
+            "created_at": now,
+        }
+        await db.whatsapp_messages.insert_one(doc)
+        enqueued += 1
+    logger.info(f"Enqueued {enqueued} '{category}' WhatsApp messages for lead {lead_id}")
     return enqueued
 
 
@@ -2353,6 +2486,7 @@ async def wa_meta_info(email: str = Query(...), password: str = Query(...)):
     return {
         "placeholder_sources": list(PARAM_SOURCES.keys()) + ["static:..."],
         "trigger_types": sorted(TRIGGER_TYPES),
+        "categories": sorted(TEMPLATE_CATEGORIES),
         "fair_event_dates": {k: v.isoformat() for k, v in GERMANY_FAIR_EVENT_DATES.items()},
     }
 
