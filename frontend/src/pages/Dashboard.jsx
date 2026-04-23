@@ -42,6 +42,7 @@ import {
   MessageCircle,
   Send,
   Edit3,
+  Sparkles,
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -1734,6 +1735,25 @@ function WhatsAppManager({ credentials }) {
     }
   };
 
+  const handleSeedGF = async () => {
+    if (!window.confirm("Create 6 draft Germany Fair templates (1 immediate + 4 days-before + 1 on-event-day)?\n\nThey'll be INACTIVE — just edit each one, paste the BSP template name, and flip Active on.")) return;
+    try {
+      const { data } = await axios.post(
+        `${API}/dashboard/whatsapp/seed-germany-fair`,
+        {},
+        { params: credentials }
+      );
+      if (data.success) {
+        toast.success(`Created ${data.created} draft templates. Edit each to set the BSP name.`);
+        fetchTemplates();
+      } else {
+        toast.error(data.message || "Seed skipped");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Seed failed");
+    }
+  };
+
   return (
     <div className="space-y-6" data-testid="whatsapp-manager">
       <div className="flex items-center justify-between">
@@ -1757,13 +1777,23 @@ function WhatsAppManager({ credentials }) {
             >Message Log</button>
           </div>
           {view === "templates" && (
-            <button
-              onClick={() => { setEditing(null); setShowForm(true); }}
-              className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium shadow-sm"
-              data-testid="wa-new-template-btn"
-            >
-              <Plus size={16} /> New Template
-            </button>
+            <>
+              <button
+                onClick={handleSeedGF}
+                className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-medium shadow-sm"
+                data-testid="wa-seed-gf-btn"
+                title="Create 6 Germany Fair draft templates you just need to name"
+              >
+                <Sparkles size={16} /> Seed Germany Fair (6)
+              </button>
+              <button
+                onClick={() => { setEditing(null); setShowForm(true); }}
+                className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium shadow-sm"
+                data-testid="wa-new-template-btn"
+              >
+                <Plus size={16} /> New Template
+              </button>
+            </>
           )}
           <button
             onClick={() => { fetchTemplates(); fetchMessages(); }}

@@ -2360,6 +2360,103 @@ async def create_wa_template(template: WhatsAppTemplate,
     return {"success": True, "template": doc}
 
 
+@api_router.post("/dashboard/whatsapp/seed-germany-fair")
+async def seed_germany_fair_templates(
+    email: str = Query(...), password: str = Query(...),
+    force: bool = Query(False),
+):
+    """
+    Create 6 draft Germany Fair templates (1 immediate + 4 days-before + 1 on-event-day).
+    Each is created as INACTIVE with a placeholder wa_template_name so the admin
+    can edit, drop in the real BSP template name, adjust days_before if needed,
+    and flip Active → on.
+    Skips creation if germany_fair templates already exist, unless force=true.
+    """
+    verify_auth(email, password)
+
+    existing = await db.whatsapp_templates.count_documents({"category": "germany_fair"})
+    if existing > 0 and not force:
+        return {
+            "success": False,
+            "created": 0,
+            "message": f"{existing} Germany Fair template(s) already exist. Pass force=true to add another set.",
+        }
+
+    drafts = [
+        {
+            "name": "GF 1 — Welcome (immediate)",
+            "wa_template_name": "REPLACE_ME_welcome",
+            "trigger_type": "immediate",
+            "days_before": 0,
+            "body_params": ["name", "preferred_city", "event_date"],
+        },
+        {
+            "name": "GF 2 — Reminder (15 days before)",
+            "wa_template_name": "REPLACE_ME_15d",
+            "trigger_type": "days_before",
+            "days_before": 15,
+            "body_params": ["name", "event_date"],
+        },
+        {
+            "name": "GF 3 — Reminder (7 days before)",
+            "wa_template_name": "REPLACE_ME_7d",
+            "trigger_type": "days_before",
+            "days_before": 7,
+            "body_params": ["name", "event_date"],
+        },
+        {
+            "name": "GF 4 — Reminder (3 days before)",
+            "wa_template_name": "REPLACE_ME_3d",
+            "trigger_type": "days_before",
+            "days_before": 3,
+            "body_params": ["name", "event_date"],
+        },
+        {
+            "name": "GF 5 — Reminder (1 day before)",
+            "wa_template_name": "REPLACE_ME_1d",
+            "trigger_type": "days_before",
+            "days_before": 1,
+            "body_params": ["name", "event_date"],
+        },
+        {
+            "name": "GF 6 — On Event Day",
+            "wa_template_name": "REPLACE_ME_event_day",
+            "trigger_type": "same_day",
+            "days_before": 0,
+            "body_params": ["name", "preferred_city"],
+        },
+    ]
+
+    now = datetime.now(timezone.utc)
+    created_docs = []
+    for d in drafts:
+        doc = {
+            "template_id": str(uuid.uuid4()),
+            "name": d["name"],
+            "wa_template_name": d["wa_template_name"],
+            "language_code": "en",
+            "body_params": d["body_params"],
+            "header_param": None,
+            "trigger_type": d["trigger_type"],
+            "days_before": d["days_before"],
+            "send_hour_utc": 4,  # 04:00 UTC = 09:30 IST
+            "active": False,     # start inactive — admin flips on after setting names
+            "category": "germany_fair",
+            "created_at": now,
+        }
+        await db.whatsapp_templates.insert_one(doc)
+        doc.pop("_id", None)
+        doc["created_at"] = doc["created_at"].isoformat()
+        created_docs.append(doc)
+
+    return {
+        "success": True,
+        "created": len(created_docs),
+        "templates": created_docs,
+        "message": "6 Germany Fair drafts created. Edit each → set 'WhatsApp Template Name (BSP)' → toggle Active ✓.",
+    }
+
+
 @api_router.get("/dashboard/whatsapp/templates")
 async def list_wa_templates(email: str = Query(...), password: str = Query(...)):
     verify_auth(email, password)
