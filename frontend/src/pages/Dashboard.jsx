@@ -673,6 +673,23 @@ export default function Dashboard() {
                               <SourceIcon size={12} />
                               {lead.source}
                             </span>
+                            {lead.source === "ivr_missed_call" && lead.extra_data && (() => {
+                              const s = (lead.extra_data.status || "").toLowerCase();
+                              const talk = parseInt(lead.extra_data.talk_duration || "0", 10) || 0;
+                              const connected = s === "answered" || talk > 0;
+                              const badge = connected
+                                ? { text: "Connected", cls: "bg-green-100 text-green-700" }
+                                : s.startsWith("cancel-customer")
+                                  ? { text: "Customer hung up", cls: "bg-orange-100 text-orange-700" }
+                                  : { text: "Not connected", cls: "bg-red-100 text-red-700" };
+                              return (
+                                <div className={`mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${badge.cls}`}
+                                  data-testid={`ivr-badge-${lead.id}`}>
+                                  {badge.text}
+                                  {talk > 0 ? ` · ${talk}s talk` : ""}
+                                </div>
+                              );
+                            })()}
                           </td>
                           <td className="px-6 py-4">
                             <select
@@ -864,6 +881,9 @@ export default function Dashboard() {
             <DetailRow label="Campaign" value={selectedLead.campaign} />
             <DetailRow label="Platform" value={selectedLead.platform} />
             <DetailRow label="Created" value={new Date(selectedLead.created_at).toLocaleString()} />
+            {selectedLead.source === "ivr_missed_call" && selectedLead.extra_data && (
+              <IVRCallPanel extra={selectedLead.extra_data} />
+            )}
             {selectedLead.extra_data && Object.keys(selectedLead.extra_data).length > 0 && (
               <div>
                 <p className="text-sm font-medium text-slate-500 mb-2">Extra Data</p>
@@ -1076,6 +1096,76 @@ function DetailRow({ label, value }) {
     <div className="flex items-start justify-between">
       <p className="text-sm font-medium text-slate-500">{label}</p>
       <p className="text-sm text-slate-900 text-right">{value}</p>
+    </div>
+  );
+}
+
+// IVR Call Detail Panel — renders call status, durations, recording etc. in a friendly way
+function IVRCallPanel({ extra }) {
+  if (!extra) return null;
+  const status = (extra.status || "").toString();
+  const callDuration = parseInt(extra.call_duration || "0", 10) || 0;
+  const talkDuration = parseInt(extra.talk_duration || "0", 10) || 0;
+  const recording = extra.call_recording_url || "";
+  const receiver = extra.receiver_name || extra.destination_number || "";
+  const start = extra.start_time || "";
+
+  const connected = talkDuration > 0 || status.toLowerCase() === "answered";
+  const statusMap = {
+    "answered": { label: "Connected", color: "bg-green-100 text-green-800 border-green-200" },
+    "cancel-customer": { label: "Customer hung up", color: "bg-orange-100 text-orange-800 border-orange-200" },
+    "cancel-agent": { label: "Agent didn't answer", color: "bg-red-100 text-red-800 border-red-200" },
+    "no-answer": { label: "No answer", color: "bg-red-100 text-red-800 border-red-200" },
+    "missed": { label: "Missed call", color: "bg-red-100 text-red-800 border-red-200" },
+  };
+  const pill = statusMap[status.toLowerCase()] || {
+    label: status || "Unknown",
+    color: "bg-slate-100 text-slate-700 border-slate-200",
+  };
+
+  return (
+    <div className="border border-slate-200 rounded-lg p-4 bg-gradient-to-br from-slate-50 to-white">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm font-semibold text-slate-700">Call Details</p>
+        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${pill.color}`}
+          data-testid="ivr-status-pill">
+          {connected ? "✓ " : ""}{pill.label}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <div>
+          <p className="text-xs text-slate-500">Call duration</p>
+          <p className="text-slate-900 font-medium">{callDuration}s</p>
+        </div>
+        <div>
+          <p className="text-xs text-slate-500">Talk duration</p>
+          <p className={`font-medium ${talkDuration > 0 ? "text-green-700" : "text-slate-500"}`}>
+            {talkDuration}s {talkDuration === 0 ? "(no talk)" : ""}
+          </p>
+        </div>
+        {receiver && (
+          <div className="col-span-2">
+            <p className="text-xs text-slate-500">Reached</p>
+            <p className="text-slate-900">{receiver}</p>
+          </div>
+        )}
+        {start && (
+          <div className="col-span-2">
+            <p className="text-xs text-slate-500">Started at</p>
+            <p className="text-slate-900">{start}</p>
+          </div>
+        )}
+      </div>
+      {recording && (
+        <div className="mt-3 pt-3 border-t border-slate-200">
+          <p className="text-xs text-slate-500 mb-1">Recording</p>
+          <audio controls src={recording} className="w-full" />
+          <a href={recording} target="_blank" rel="noreferrer"
+            className="text-xs text-blue-600 hover:underline mt-1 inline-block">
+            Open recording in new tab ↗
+          </a>
+        </div>
+      )}
     </div>
   );
 }
