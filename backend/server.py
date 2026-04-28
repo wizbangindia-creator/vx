@@ -469,6 +469,262 @@ async def send_university_change_welcome_email(name: str, email: str):
         return False
 
 
+# ==================== GENERIC EMAIL HELPERS ====================
+
+async def send_resend_email(to_email: str, subject: str, html: str) -> bool:
+    """Generic async wrapper around the sync Resend SDK."""
+    if not RESEND_API_KEY or not to_email:
+        logger.warning(f"Skip email to {to_email}: RESEND_API_KEY missing or no recipient")
+        return False
+    try:
+        params = {
+            "from": SENDER_EMAIL,
+            "to": [to_email],
+            "subject": subject,
+            "html": html,
+        }
+        result = await asyncio.to_thread(resend.Emails.send, params)
+        logger.info(f"Email sent to {to_email} subj='{subject[:40]}' id={result.get('id')}")
+        return True
+    except Exception as e:
+        logger.error(f"Resend failed to {to_email}: {e}")
+        return False
+
+
+# Shared VisaXpert credibility badge block reused across emails
+VX_CRED_BLOCK = """
+<table role="presentation" style="width:100%;border-collapse:collapse;margin:18px 0;">
+  <tr>
+    <td style="padding:10px;background:#eff6ff;border-radius:8px;text-align:center;width:33%;">
+      <div style="font-size:20px;font-weight:700;color:#1d4ed8;">4000+</div>
+      <div style="font-size:12px;color:#475569;">Successful Visas</div>
+    </td>
+    <td style="width:1%;"></td>
+    <td style="padding:10px;background:#ecfdf5;border-radius:8px;text-align:center;width:33%;">
+      <div style="font-size:20px;font-weight:700;color:#059669;">14+ yrs</div>
+      <div style="font-size:12px;color:#475569;">Experience Since 2012</div>
+    </td>
+    <td style="width:1%;"></td>
+    <td style="padding:10px;background:#fef3c7;border-radius:8px;text-align:center;width:33%;">
+      <div style="font-size:20px;font-weight:700;color:#b45309;">ICEF</div>
+      <div style="font-size:12px;color:#475569;">Certified Agency</div>
+    </td>
+  </tr>
+</table>
+"""
+
+EMAIL_FOOTER = """
+<hr style="margin-top: 30px; border: none; border-top: 1px solid #e5e7eb;">
+<p style="font-size: 12px; color: #6b7280;">
+  Visaxpert International &nbsp;|&nbsp; Trusted Since 2012 &nbsp;|&nbsp; ICEF Certified<br>
+  Website: <a href="https://visaxpertinternational.co.in" style="color: #1d4ed8;">visaxpertinternational.co.in</a>
+</p>
+"""
+
+
+async def send_main_landing_welcome_email(name: str, email: str):
+    """Immediate welcome email for main landing page enquiries."""
+    if not email:
+        return False
+    first_name = (name or "there").split(" ")[0]
+    subject = "Thank you for starting your Study Abroad journey with VisaXpert"
+    html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto; padding: 20px; color:#0f172a;">
+      <h2 style="color:#1d4ed8; margin-bottom: 8px;">Hi {first_name}, welcome aboard! ✈️</h2>
+      <p style="font-size:15px; line-height:1.55;">
+        Thank you for showing interest in <strong>VisaXpert</strong> and taking the first step toward your
+        study-abroad journey. Our counsellors will reach out to you shortly to craft the best possible
+        path for your goals.
+      </p>
+
+      {VX_CRED_BLOCK}
+
+      <p style="font-size:15px; line-height:1.55;">
+        Whether it's university shortlisting, scholarships, visa strategy or post-arrival support —
+        we've done it 4,000+ times and we'll make sure your story is next.
+      </p>
+
+      <p style="margin-top: 24px;">
+        Warm regards,<br>
+        <strong>Team VisaXpert</strong>
+      </p>
+
+      {EMAIL_FOOTER}
+    </div>
+    """
+    return await send_resend_email(email, subject, html)
+
+
+# ---------- Germany Fair emails ----------
+# Event dates per branch are in GERMANY_FAIR_EVENT_DATES (UTC).
+
+def _gf_event_strings(preferred_city: str):
+    """Return (event_dt, nice_date, nice_time_ist) tuple; event_dt may be None."""
+    from datetime import timezone as _tz, timedelta as _td
+    dt = GERMANY_FAIR_EVENT_DATES.get(preferred_city)
+    if not dt:
+        return None, "", ""
+    ist = dt.astimezone(_tz(_td(hours=5, minutes=30)))
+    return dt, ist.strftime("%A, %d %B %Y"), ist.strftime("%I:%M %p IST")
+
+
+def _gf_branch_contact(city: str):
+    info = BRANCH_DIRECTORY.get(city) or {}
+    return info.get("address", ""), info.get("phone", ""), info.get("contact_name", "")
+
+
+async def send_germany_fair_email_1(name: str, email: str, preferred_city: str):
+    """Immediate email on signup — full Germany Fair details."""
+    if not email:
+        return False
+    first_name = (name or "there").split(" ")[0]
+    _, date_str, time_str = _gf_event_strings(preferred_city)
+    addr, phone, contact = _gf_branch_contact(preferred_city)
+
+    city_block = ""
+    if preferred_city and date_str:
+        city_block = f"""
+          <table role="presentation" style="width:100%;background:#f1f5f9;border-radius:10px;padding:16px;margin:16px 0;">
+            <tr><td>
+              <p style="margin:0 0 6px;font-size:13px;color:#475569;text-transform:uppercase;letter-spacing:.06em;">Your Fair Slot</p>
+              <p style="margin:0;font-size:18px;font-weight:700;color:#0f172a;">Germany Fair · {preferred_city}</p>
+              <p style="margin:4px 0 0;font-size:14px;color:#334155;">{date_str} &nbsp;•&nbsp; {time_str}</p>
+              {f'<p style="margin:8px 0 0;font-size:13px;color:#475569;"><strong>Venue:</strong> {addr}</p>' if addr else ''}
+              {f'<p style="margin:4px 0 0;font-size:13px;color:#475569;"><strong>Senior Counsellor:</strong> {contact} · {phone}</p>' if contact else ''}
+            </td></tr>
+          </table>
+        """
+
+    subject = "Your Spot at the Germany Education Fair is Confirmed ✅"
+    html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 20px; color:#0f172a;">
+      <h2 style="color:#dc2626; margin-bottom: 6px;">Hi {first_name},</h2>
+      <p style="font-size:15px; line-height:1.55;">
+        Thank you for registering for the <strong>Germany Education Fair</strong> organised by
+        <strong>VisaXpert</strong>. Your slot is <strong>CONFIRMED</strong> 🎉
+      </p>
+
+      {city_block}
+
+      <h3 style="color:#1d4ed8;margin-top:24px;">What to Expect at the Fair</h3>
+      <ul style="font-size:14px;line-height:1.7;color:#334155;">
+        <li>Genuine, accurate &amp; up-to-date info on <strong>Germany Study Visa</strong></li>
+        <li>University shortlisting tailored to your profile</li>
+        <li>Scholarships &amp; tuition-fee discounts up to <strong>€1000</strong></li>
+        <li>50% waiver on VisaXpert's processing fee (fair-only)</li>
+        <li>1-on-1 time with Senior Counsellors who've placed 4000+ students</li>
+      </ul>
+
+      {VX_CRED_BLOCK}
+
+      <p style="font-size:14px;color:#334155;">
+        Please come prepared with your academic documents and questions — it'll help us give you the
+        sharpest advice in the time we have together.
+      </p>
+
+      <p style="margin-top: 24px;">See you at the fair 🇩🇪<br>
+        <strong>Team VisaXpert</strong>
+      </p>
+
+      {EMAIL_FOOTER}
+    </div>
+    """
+    return await send_resend_email(email, subject, html)
+
+
+async def send_germany_fair_email_2(name: str, email: str, preferred_city: str):
+    """Mid-cycle reminder with details as per user's selection."""
+    if not email:
+        return False
+    first_name = (name or "there").split(" ")[0]
+    _, date_str, time_str = _gf_event_strings(preferred_city)
+    addr, phone, contact = _gf_branch_contact(preferred_city)
+
+    subject = f"Get-Ready Checklist for the Germany Fair — {preferred_city or 'Your City'}"
+    html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 20px; color:#0f172a;">
+      <h2 style="color:#1d4ed8; margin-bottom: 6px;">Hi {first_name}, the countdown is on ⏳</h2>
+      <p style="font-size:15px; line-height:1.55;">
+        Your Germany Education Fair at <strong>{preferred_city or 'your selected city'}</strong>
+        {f"is scheduled for <strong>{date_str}</strong> at <strong>{time_str}</strong>." if date_str else "is coming up soon."}
+        Here's how to make the most of it:
+      </p>
+
+      <h3 style="color:#059669;margin-top:20px;">Please bring / have ready</h3>
+      <ul style="font-size:14px;line-height:1.7;color:#334155;">
+        <li>Your latest <strong>academic mark-sheets</strong> (10th / 12th / graduation)</li>
+        <li><strong>Passport copy</strong> if available</li>
+        <li>Any <strong>IELTS / TOEFL / GRE</strong> scores you've taken</li>
+        <li>A shortlist of <strong>2–3 courses</strong> you're interested in (no stress, we'll refine it)</li>
+      </ul>
+
+      {f'''
+      <table role="presentation" style="width:100%;background:#eff6ff;border-radius:10px;padding:16px;margin:20px 0;">
+        <tr><td>
+          <p style="margin:0 0 6px;font-size:13px;color:#475569;text-transform:uppercase;letter-spacing:.06em;">Venue reminder</p>
+          <p style="margin:0;font-size:15px;color:#0f172a;">{addr}</p>
+          {f'<p style="margin:8px 0 0;font-size:13px;color:#334155;"><strong>{contact}</strong> · {phone}</p>' if contact else ''}
+        </td></tr>
+      </table>
+      ''' if addr else ''}
+
+      {VX_CRED_BLOCK}
+
+      <p style="font-size:14px;color:#334155;">
+        If your plans have changed or you'd like to reschedule, just reply to this email and we'll
+        take care of it.
+      </p>
+
+      <p style="margin-top: 24px;">See you soon,<br><strong>Team VisaXpert</strong></p>
+
+      {EMAIL_FOOTER}
+    </div>
+    """
+    return await send_resend_email(email, subject, html)
+
+
+async def send_germany_fair_email_3(name: str, email: str, preferred_city: str):
+    """Final reminder — 24 hours before the fair."""
+    if not email:
+        return False
+    first_name = (name or "there").split(" ")[0]
+    _, date_str, time_str = _gf_event_strings(preferred_city)
+    addr, phone, contact = _gf_branch_contact(preferred_city)
+
+    subject = "⏰ Only 24 hours to go — Germany Education Fair"
+    html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 20px; color:#0f172a;">
+      <h2 style="color:#dc2626;margin-bottom:6px;">Hi {first_name}, we're almost there!</h2>
+      <p style="font-size:15px; line-height:1.55;">
+        The <strong>Germany Education Fair</strong> is happening <strong>tomorrow</strong>
+        {f"({date_str}, {time_str})" if date_str else ""} and your slot is reserved.
+      </p>
+
+      {f'''
+      <table role="presentation" style="width:100%;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:16px;margin:16px 0;">
+        <tr><td>
+          <p style="margin:0 0 6px;font-size:13px;color:#b91c1c;text-transform:uppercase;letter-spacing:.06em;">Tomorrow · {preferred_city}</p>
+          <p style="margin:0;font-size:16px;color:#0f172a;">{addr}</p>
+          {f'<p style="margin:8px 0 0;font-size:13px;color:#334155;"><strong>{contact}</strong> · {phone}</p>' if contact else ''}
+        </td></tr>
+      </table>
+      ''' if addr else ''}
+
+      <p style="font-size:14px; line-height:1.55;color:#334155;">
+        Kindly arrive on time so our counsellors can give you undivided attention. If something
+        urgent comes up, reply to this email and we'll arrange an alternate slot.
+      </p>
+
+      {VX_CRED_BLOCK}
+
+      <p style="margin-top: 24px;">See you tomorrow 🇩🇪<br><strong>Team VisaXpert</strong></p>
+
+      {EMAIL_FOOTER}
+    </div>
+    """
+    return await send_resend_email(email, subject, html)
+
+
 async def send_whatsapp_template_message(phone: str, name: str):
     """Legacy one-shot WhatsApp message sender (IVR / non-fair leads).
 
@@ -607,6 +863,10 @@ async def create_enquiry(input: EnquiryCreate):
     except Exception as e:
         logger.error(f"Failed to enqueue main-landing WhatsApp: {e}")
 
+    # Fire welcome email (fire-and-forget)
+    if input.email:
+        asyncio.create_task(send_main_landing_welcome_email(input.name, input.email))
+
     # Also send to Google Sheets
     sheets_data = {
         "name": input.name,
@@ -704,6 +964,15 @@ async def receive_webhook_lead(lead: WebhookLead):
     # Other sources (not university_change, not germany_fair): single legacy template
     elif source not in ("university_change", "germany_fair") and phone:
         asyncio.create_task(send_whatsapp_template_message(phone, name))
+
+    # Germany Fair: also fire email 1 immediately and schedule emails 2 & 3
+    if source == "germany_fair" and lead.email:
+        preferred = (lead.preferred_city or "").strip()
+        asyncio.create_task(send_germany_fair_email_1(name, lead.email, preferred))
+        try:
+            await _enqueue_germany_fair_emails(lead_id, name, lead.email, preferred)
+        except Exception as e:
+            logger.error(f"Failed to enqueue Germany Fair emails: {e}")
     
     # Also send to Google Sheets
     sheets_data = {
@@ -2605,7 +2874,119 @@ async def _scheduler_loop():
             await _dispatch_pending_messages()
         except Exception as e:
             logger.error(f"scheduler loop error: {e}")
+        try:
+            await _dispatch_pending_emails()
+        except Exception as e:
+            logger.error(f"email dispatch error: {e}")
         await asyncio.sleep(60)
+
+
+# ==================== SCHEDULED EMAILS ====================
+# We reuse the whatsapp scheduler loop to also dispatch scheduled transactional
+# emails. Each doc in scheduled_emails has:
+#   {email_id, kind, lead_id, to, name, preferred_city, scheduled_at, status,
+#    attempts, sent_at, error, created_at}
+
+EMAIL_KIND_DISPATCH = {
+    "gf_email_2": lambda doc: send_germany_fair_email_2(doc.get("name", ""), doc["to"], doc.get("preferred_city", "")),
+    "gf_email_3": lambda doc: send_germany_fair_email_3(doc.get("name", ""), doc["to"], doc.get("preferred_city", "")),
+}
+
+
+async def _enqueue_germany_fair_emails(lead_id: str, name: str, to: str, preferred_city: str):
+    """
+    Schedule Germany Fair emails 2 (checklist / ~5 days before event) and 3
+    (24-hour reminder / 1 day before event).
+    Email 1 is sent synchronously by the caller.
+    """
+    if db is None or not to:
+        return 0
+    event_dt = GERMANY_FAIR_EVENT_DATES.get(preferred_city)
+    if not event_dt:
+        # No known event date → skip scheduled emails (email 1 already went)
+        logger.info(f"GF emails: no event date for city='{preferred_city}', skipping 2&3")
+        return 0
+
+    now = datetime.now(timezone.utc)
+    # 5 days before at 04:30 UTC (≈ 10:00 IST); 1 day before at 04:30 UTC
+    fire_2 = (event_dt - timedelta(days=5)).replace(hour=4, minute=30, second=0, microsecond=0)
+    fire_3 = (event_dt - timedelta(days=1)).replace(hour=4, minute=30, second=0, microsecond=0)
+
+    plan = [("gf_email_2", fire_2), ("gf_email_3", fire_3)]
+    enqueued = 0
+    for kind, when in plan:
+        if when <= now:
+            # Already past due — send it immediately (not perfect but better than silent skip)
+            when = now
+        doc = {
+            "email_id": str(uuid.uuid4()),
+            "kind": kind,
+            "lead_id": lead_id,
+            "to": to,
+            "name": name,
+            "preferred_city": preferred_city,
+            "scheduled_at": when,
+            "status": "pending",
+            "attempts": 0,
+            "sent_at": None,
+            "error": None,
+            "created_at": now,
+        }
+        await db.scheduled_emails.insert_one(doc)
+        enqueued += 1
+    logger.info(f"Enqueued {enqueued} Germany Fair emails for lead {lead_id} ({preferred_city})")
+    return enqueued
+
+
+async def _dispatch_pending_emails():
+    """Worker: send any scheduled_emails whose time has come."""
+    if db is None:
+        return
+    now = datetime.now(timezone.utc)
+    query = {
+        "status": "pending",
+        "scheduled_at": {"$lte": now},
+        "attempts": {"$lt": 3},
+    }
+    cursor = db.scheduled_emails.find(query, {"_id": 0})
+    batch = await cursor.to_list(length=50)
+    for doc in batch:
+        email_id = doc["email_id"]
+        # Claim
+        claim = await db.scheduled_emails.update_one(
+            {"email_id": email_id, "status": "pending"},
+            {"$set": {"status": "sending"}, "$inc": {"attempts": 1}},
+        )
+        if claim.modified_count == 0:
+            continue
+        sender = EMAIL_KIND_DISPATCH.get(doc.get("kind"))
+        if not sender:
+            await db.scheduled_emails.update_one(
+                {"email_id": email_id},
+                {"$set": {"status": "failed", "error": f"unknown kind {doc.get('kind')}"}},
+            )
+            continue
+        try:
+            ok = await sender(doc)
+        except Exception as e:
+            ok = False
+            await db.scheduled_emails.update_one(
+                {"email_id": email_id},
+                {"$set": {"status": "pending", "error": str(e)[:300]}},
+            )
+            continue
+        if ok:
+            await db.scheduled_emails.update_one(
+                {"email_id": email_id},
+                {"$set": {"status": "sent", "sent_at": datetime.now(timezone.utc), "error": None}},
+            )
+        else:
+            attempts = doc.get("attempts", 0) + 1
+            final = "failed" if attempts >= 3 else "pending"
+            await db.scheduled_emails.update_one(
+                {"email_id": email_id},
+                {"$set": {"status": final, "error": "send returned False"}},
+            )
 
 
 # ---- Dashboard endpoints for templates & messages ----
