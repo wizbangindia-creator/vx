@@ -1717,7 +1717,7 @@ function WhatsAppManager({ credentials }) {
   const toggleGfTestMode = async () => {
     const next = !gfTestMode;
     if (next && !window.confirm(
-      "Enable Germany Fair TEST mode?\n\nEvery new germany_fair lead will receive all 6 WhatsApp messages 1 minute apart, ignoring the real schedule. Turn OFF before going live."
+      "Enable Germany Fair TEST mode?\n\nEvery new germany_fair lead will receive all 6 WhatsApp messages 20 minutes apart, ignoring the real schedule. Turn OFF before going live."
     )) return;
     setGfTestToggling(true);
     try {
@@ -1727,7 +1727,7 @@ function WhatsAppManager({ credentials }) {
         { params: credentials }
       );
       setGfTestMode(next);
-      toast.success(next ? "GF Test mode ENABLED (1-min gaps)" : "GF Test mode disabled");
+      toast.success(next ? "GF Test mode ENABLED (20-min gaps)" : "GF Test mode disabled");
     } catch {
       toast.error("Failed to toggle");
     } finally {

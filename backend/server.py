@@ -594,6 +594,25 @@ async def create_enquiry(input: EnquiryCreate):
 
 # ==================== UNIVERSAL WEBHOOK ====================
 
+@api_router.get("/webhook/lead")
+async def receive_webhook_lead_get(request: Request):
+    """
+    Compat GET handler for providers (e.g. IVR / missed-call services) that were
+    given the universal /webhook/lead URL but actually push IVR-style query
+    params (SourceNumber, CallSid, Status, ...). We detect those and delegate to
+    the IVR webhook handler, otherwise return a helpful JSON response instead of 405.
+    """
+    params = dict(request.query_params)
+    ivr_signals = {"SourceNumber", "CallSid", "DestinationNumber", "Direction",
+                   "DialWhomNumber", "TalkDuration", "CallRecordingUrl"}
+    if any(k in params for k in ivr_signals) or params.get("type") == "call_report":
+        return await receive_ivr_webhook_get(request)
+    return {
+        "success": False,
+        "message": "Use POST with a JSON body for /api/webhook/lead, or hit /api/webhook/ivr for IVR missed-call pushes.",
+    }
+
+
 @api_router.post("/webhook/lead")
 async def receive_webhook_lead(lead: WebhookLead):
     """Universal webhook for any lead source"""
@@ -2355,8 +2374,8 @@ async def _enqueue_germany_fair_messages(lead_id: str, lead_data: dict):
         send_minute = int(tpl.get("send_minute_utc", 30))
 
         if test_mode:
-            # Fire all of them 1 min apart for QA, in the order returned
-            scheduled_at = now + timedelta(minutes=test_index)
+            # Fire all of them 20 min apart for QA (respects Meta pacing limits better)
+            scheduled_at = now + timedelta(minutes=20 * test_index)
             test_index += 1
         elif trigger == "immediate":
             scheduled_at = now
