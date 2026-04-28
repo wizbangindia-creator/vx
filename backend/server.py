@@ -499,6 +499,47 @@ async def send_whatsapp_template_message(phone: str, name: str):
     return False
 
 
+# IVR-specific WhatsApp campaign names (no template params)
+IVR_CAMPAIGN_CONNECTED = "call_connected"
+IVR_CAMPAIGN_NOT_CONNECTED = "call_notconnected"
+
+
+def _ivr_call_connected(status: str, talk_duration: str) -> bool:
+    """Decide whether an IVR call actually connected (agent + customer talked)."""
+    s = (status or "").strip().lower()
+    try:
+        talk = int(str(talk_duration or "0").split(".")[0])
+    except ValueError:
+        talk = 0
+    return s == "answered" or talk > 0
+
+
+async def send_ivr_whatsapp(phone: str, status: str, talk_duration: str):
+    """Send the appropriate IVR follow-up WhatsApp template based on call outcome."""
+    if not phone:
+        return False
+    if WHATSAPP_PROVIDER == "aisensy" and not AISENSY_API_KEY:
+        logger.warning("AiSensy key missing, skipping IVR WhatsApp")
+        return False
+
+    connected = _ivr_call_connected(status, talk_duration)
+    campaign = IVR_CAMPAIGN_CONNECTED if connected else IVR_CAMPAIGN_NOT_CONNECTED
+
+    result = await _send_whatsapp_api(
+        to_phone=phone,
+        template_name=campaign,
+        language_code="en",
+        body_params=[],
+        header_param=None,
+        recipient_name="",
+    )
+    if result.get("ok"):
+        logger.info(f"IVR WhatsApp '{campaign}' sent to {phone} (connected={connected})")
+        return True
+    logger.error(f"IVR WhatsApp '{campaign}' failed to {phone}: {result.get('error', '')[:200]}")
+    return False
+
+
 # ==================== API ENDPOINTS ====================
 
 @api_router.get("/")
@@ -779,9 +820,9 @@ async def receive_ivr_webhook_get(request: Request):
             logger.error(f"Failed to save IVR lead: {e}")
             raise HTTPException(status_code=500, detail="Failed to save lead")
         
-        # Send WhatsApp message for IVR leads (only for missed calls, not answered)
-        if phone and status.lower() in ['cancel-customer', 'cancel-agent', 'missed', 'no-answer']:
-            asyncio.create_task(send_whatsapp_template_message(phone, ""))
+        # Send IVR WhatsApp follow-up: 'call_connected' if talked, else 'call_notconnected'
+        if phone:
+            asyncio.create_task(send_ivr_whatsapp(phone, status, extra_data.get("talk_duration", "0")))
         
         # Send to Google Sheets
         sheets_data = {
@@ -850,11 +891,13 @@ async def receive_ivr_webhook_post(request: Request):
         start_time = payload.get('StartTime') or payload.get('start_time') or ""
         receiver_name = payload.get('receiver_name') or payload.get('DialWhomNumber') or ""
         call_duration = payload.get('CallDuration') or payload.get('call_duration') or "0"
+        talk_duration = payload.get('TalkDuration') or payload.get('talk_duration') or "0"
         
         # Build extra data
         extra_data = {
             "destination_number": payload.get('DestinationNumber') or "",
             "call_duration": call_duration,
+            "talk_duration": talk_duration,
             "status": status,
             "start_time": start_time,
             "end_time": payload.get('EndTime') or "",
@@ -890,9 +933,9 @@ async def receive_ivr_webhook_post(request: Request):
             logger.error(f"Failed to save IVR lead: {e}")
             raise HTTPException(status_code=500, detail="Failed to save lead")
         
-        # Send WhatsApp for missed calls
-        if phone and status.lower() in ['cancel-customer', 'cancel-agent', 'missed', 'no-answer']:
-            asyncio.create_task(send_whatsapp_template_message(phone, ""))
+        # Send IVR WhatsApp follow-up: 'call_connected' if talked, else 'call_notconnected'
+        if phone:
+            asyncio.create_task(send_ivr_whatsapp(phone, status, talk_duration))
         
         # Send to Google Sheets
         sheets_data = {
