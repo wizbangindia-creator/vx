@@ -1652,6 +1652,7 @@ const CATEGORY_LABELS = CATEGORY_OPTIONS.reduce((acc, o) => {
 
 const TRIGGER_LABELS = {
   immediate: "Immediately (on form submit)",
+  fraction: "Auto-spread to event",
   days_before: "X days before event",
   same_day: "On event day",
 };
@@ -1665,6 +1666,8 @@ function WhatsAppManager({ credentials }) {
   const [editing, setEditing] = useState(null);
   const [view, setView] = useState("templates"); // templates | messages
   const [statusFilter, setStatusFilter] = useState("");
+  const [gfTestMode, setGfTestMode] = useState(false);
+  const [gfTestToggling, setGfTestToggling] = useState(false);
 
   const fetchTemplates = useCallback(async () => {
     setLoadingTpl(true);
@@ -1694,10 +1697,43 @@ function WhatsAppManager({ credentials }) {
     }
   }, [credentials, statusFilter]);
 
+  const fetchGfTestMode = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${API}/dashboard/whatsapp/gf-test-mode`, {
+        params: credentials,
+      });
+      setGfTestMode(!!data.enabled);
+    } catch {
+      /* ignore */
+    }
+  }, [credentials]);
+
   useEffect(() => {
     fetchTemplates();
     fetchMessages();
-  }, [fetchTemplates, fetchMessages]);
+    fetchGfTestMode();
+  }, [fetchTemplates, fetchMessages, fetchGfTestMode]);
+
+  const toggleGfTestMode = async () => {
+    const next = !gfTestMode;
+    if (next && !window.confirm(
+      "Enable Germany Fair TEST mode?\n\nEvery new germany_fair lead will receive all 6 WhatsApp messages 1 minute apart, ignoring the real schedule. Turn OFF before going live."
+    )) return;
+    setGfTestToggling(true);
+    try {
+      await axios.post(
+        `${API}/dashboard/whatsapp/gf-test-mode`,
+        { enabled: next },
+        { params: credentials }
+      );
+      setGfTestMode(next);
+      toast.success(next ? "GF Test mode ENABLED (1-min gaps)" : "GF Test mode disabled");
+    } catch {
+      toast.error("Failed to toggle");
+    } finally {
+      setGfTestToggling(false);
+    }
+  };
 
   const handleDelete = async (template_id) => {
     if (!window.confirm("Delete this template? Pending scheduled messages will be cancelled.")) return;
@@ -1782,6 +1818,18 @@ function WhatsAppManager({ credentials }) {
           {view === "templates" && (
             <>
               <button
+                onClick={toggleGfTestMode}
+                disabled={gfTestToggling}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium shadow-sm border transition-colors ${gfTestMode
+                  ? "bg-rose-500 border-rose-500 text-white hover:bg-rose-600"
+                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"}`}
+                data-testid="wa-gf-test-mode-toggle"
+                title="Germany Fair: when ON, every lead gets all 6 messages 1 min apart"
+              >
+                <span className={`w-2 h-2 rounded-full ${gfTestMode ? "bg-white animate-pulse" : "bg-slate-300"}`}></span>
+                GF Test Mode: {gfTestMode ? "ON" : "OFF"}
+              </button>
+              <button
                 onClick={handleSeedGF}
                 className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-medium shadow-sm"
                 data-testid="wa-seed-gf-btn"
@@ -1853,7 +1901,13 @@ function WhatsAppManager({ credentials }) {
                         <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
                           {TRIGGER_LABELS[t.trigger_type] || t.trigger_type}
                           {t.trigger_type === "days_before" ? ` (${t.days_before}d)` : ""}
+                          {t.trigger_type === "fraction" ? ` (${Math.round((t.fraction || 0.5) * 100)}%)` : ""}
                         </span>
+                        {t.header_media_url && (
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${t.header_media_type === "video" ? "bg-purple-100 text-purple-700" : "bg-sky-100 text-sky-700"}`}>
+                            {t.header_media_type === "video" ? "Video" : "Image"}
+                          </span>
+                        )}
                         {!t.active && (
                           <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
                             Inactive
@@ -1862,7 +1916,7 @@ function WhatsAppManager({ credentials }) {
                       </div>
                       <p className="text-xs text-slate-500 mb-2">
                         Lang: <span className="font-mono">{t.language_code}</span>
-                        {"  •  Send @ "}{String(t.send_hour_utc).padStart(2, "0")}:00 UTC
+                        {"  •  Send @ "}{String(t.send_hour_utc).padStart(2, "0")}:{String(t.send_minute_utc ?? 0).padStart(2, "0")} UTC
                       </p>
                       {(t.body_params || []).length > 0 && (
                         <div className="text-xs text-slate-600">
@@ -2024,13 +2078,18 @@ function WhatsAppTemplateForm({ credentials, template, onClose, onSaved }) {
     header_param: template?.header_param || "",
     trigger_type: template?.trigger_type || "immediate",
     days_before: template?.days_before ?? 1,
+    fraction: template?.fraction ?? 0.5,
     send_hour_utc: template?.send_hour_utc ?? 4,
+    send_minute_utc: template?.send_minute_utc ?? 30,
     active: template?.active ?? true,
     category: template?.category || "main_online",
+    header_media_url: template?.header_media_url || "",
+    header_media_type: template?.header_media_type || "",
   }));
   const [saving, setSaving] = useState(false);
   const [testPhone, setTestPhone] = useState("");
   const [testing, setTesting] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
 
   const addBodyParam = () => setForm({ ...form, body_params: [...form.body_params, "name"] });
   const updateBodyParam = (i, v) => {
@@ -2041,6 +2100,34 @@ function WhatsAppTemplateForm({ credentials, template, onClose, onSaved }) {
   const removeBodyParam = (i) => {
     const arr = form.body_params.filter((_, idx) => idx !== i);
     setForm({ ...form, body_params: arr });
+  };
+
+  const handleMediaUpload = async (file) => {
+    if (!file) return;
+    setUploadingMedia(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const { data } = await axios.post(
+        `${API}/dashboard/whatsapp/upload-media`,
+        formData,
+        { params: credentials, headers: { "Content-Type": "multipart/form-data" } }
+      );
+      setForm((f) => ({
+        ...f,
+        header_media_url: data.media_url,
+        header_media_type: data.media_type,
+      }));
+      toast.success(`${data.media_type === "video" ? "Video" : "Image"} uploaded`);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Upload failed");
+    } finally {
+      setUploadingMedia(false);
+    }
+  };
+
+  const removeMedia = () => {
+    setForm((f) => ({ ...f, header_media_url: "", header_media_type: "" }));
   };
 
   const handleSubmit = async (e) => {
@@ -2054,7 +2141,11 @@ function WhatsAppTemplateForm({ credentials, template, onClose, onSaved }) {
       ...form,
       header_param: form.header_param ? form.header_param : null,
       days_before: Number(form.days_before) || 0,
+      fraction: Number(form.fraction) || 0,
       send_hour_utc: Number(form.send_hour_utc) || 0,
+      send_minute_utc: Number(form.send_minute_utc) || 0,
+      header_media_url: form.header_media_url || null,
+      header_media_type: form.header_media_type || null,
     };
     try {
       if (isEdit) {
@@ -2186,6 +2277,7 @@ function WhatsAppTemplateForm({ credentials, template, onClose, onSaved }) {
                 data-testid="wa-form-trigger"
               >
                 <option value="immediate">Immediately on signup</option>
+                <option value="fraction">Auto-spread between signup &amp; event</option>
                 <option value="days_before">X days before event</option>
                 <option value="same_day">On the event day</option>
               </select>
@@ -2198,15 +2290,34 @@ function WhatsAppTemplateForm({ credentials, template, onClose, onSaved }) {
                   data-testid="wa-form-days"
                 />
               )}
+              {form.trigger_type === "fraction" && (
+                <select
+                  value={form.fraction}
+                  onChange={(e) => setForm({ ...form, fraction: e.target.value })}
+                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  data-testid="wa-form-fraction"
+                >
+                  <option value="0.25">25% of the way to event</option>
+                  <option value="0.5">50% of the way to event</option>
+                  <option value="0.75">75% of the way to event</option>
+                </select>
+              )}
               {form.trigger_type !== "immediate" && (
                 <div className="flex items-center gap-2">
                   <input
                     type="number" min="0" max="23" value={form.send_hour_utc}
                     onChange={(e) => setForm({ ...form, send_hour_utc: e.target.value })}
-                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm w-24"
+                    className="px-2 py-2 border border-slate-200 rounded-lg text-sm w-16"
                     data-testid="wa-form-hour"
                   />
-                  <span className="text-xs text-slate-500">hour UTC (4 = 9:30 AM IST)</span>
+                  <span className="text-xs text-slate-400">:</span>
+                  <input
+                    type="number" min="0" max="59" value={form.send_minute_utc}
+                    onChange={(e) => setForm({ ...form, send_minute_utc: e.target.value })}
+                    className="px-2 py-2 border border-slate-200 rounded-lg text-sm w-16"
+                    data-testid="wa-form-minute"
+                  />
+                  <span className="text-xs text-slate-500">UTC (4:30 ≈ 10:00 IST)</span>
                 </div>
               )}
             </div>
@@ -2218,6 +2329,62 @@ function WhatsAppTemplateForm({ credentials, template, onClose, onSaved }) {
             </p>
           </div>
         )}
+
+        <div className="border-t border-slate-200 pt-4">
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Header Media (optional — image or video)
+          </label>
+          {form.header_media_url ? (
+            <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-lg p-3">
+              {form.header_media_type === "video" ? (
+                <video
+                  src={form.header_media_url}
+                  className="w-24 h-24 rounded object-cover bg-black"
+                  controls
+                />
+              ) : (
+                <img
+                  src={form.header_media_url}
+                  alt="header"
+                  className="w-24 h-24 rounded object-cover border border-slate-200"
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-slate-500 uppercase font-medium">
+                  {form.header_media_type || "media"}
+                </p>
+                <p className="text-xs text-slate-600 font-mono truncate">
+                  {form.header_media_url}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={removeMedia}
+                className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded border border-red-200"
+                data-testid="wa-form-media-remove"
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-lg px-4 py-6 cursor-pointer transition-colors ${uploadingMedia ? "border-slate-300 bg-slate-50" : "border-slate-300 hover:border-green-400 hover:bg-green-50/40"}`}>
+              <input
+                type="file"
+                accept="image/*,video/*"
+                className="hidden"
+                disabled={uploadingMedia}
+                onChange={(e) => handleMediaUpload(e.target.files?.[0])}
+                data-testid="wa-form-media-upload"
+              />
+              <div className="text-sm text-slate-600">
+                {uploadingMedia ? "Uploading…" : "Click to upload image or video"}
+              </div>
+              <div className="text-xs text-slate-400">
+                JPEG/PNG/WEBP/GIF (&lt;5MB) or MP4/MOV/3GP/WEBM (&lt;16MB)
+              </div>
+            </label>
+          )}
+        </div>
 
         <div className="border-t border-slate-200 pt-4">
           <div className="flex items-center justify-between mb-2">

@@ -2053,8 +2053,9 @@ GERMANY_FAIR_EVENT_DATES = {
     "Ludhiana":  datetime(2026, 5, 28, 10, 0, 0, tzinfo=timezone.utc),
 }
 
-TRIGGER_TYPES = {"immediate", "days_before", "same_day"}
+TRIGGER_TYPES = {"immediate", "days_before", "same_day", "fraction"}
 TEMPLATE_CATEGORIES = {"germany_fair", "main_online", "main_offline"}
+MEDIA_TYPES = {"image", "video", "document"}
 
 # Branch directory — used by {{branch_address}} / {{branch_phone}} placeholders
 # so Main-Page-Offline templates auto-fill the right office details.
@@ -2125,13 +2126,19 @@ class WhatsAppTemplate(BaseModel):
     language_code: str = Field(default="en")
     body_params: List[str] = Field(default_factory=list)  # placeholder sources in order
     header_param: Optional[str] = None  # single header parameter source or None
-    trigger_type: str = Field(default="immediate")  # immediate | days_before | same_day
+    trigger_type: str = Field(default="immediate")  # immediate | days_before | same_day | fraction
     days_before: int = Field(default=0, ge=0, le=30)  # only for days_before; same_day=0
-    send_hour_utc: int = Field(default=4, ge=0, le=23)  # 04:00 UTC = 09:30 IST
+    fraction: float = Field(default=0.5, ge=0.0, le=1.0)  # only for trigger_type=fraction (0..1 of time between signup and event)
+    send_hour_utc: int = Field(default=4, ge=0, le=23)  # 04:00 UTC ≈ 09:30 IST; 4:30 UTC = 10:00 IST
+    send_minute_utc: int = Field(default=30, ge=0, le=59)
     active: bool = Field(default=True)
     # Which lead flow this template belongs to. Kept backward-compatible (defaults
     # to germany_fair so existing templates keep firing for Germany Fair leads).
     category: str = Field(default="germany_fair")
+    # Optional media for the header (image / video / document). Served from
+    # /api/uploads/* so AiSensy can fetch the public URL.
+    header_media_url: Optional[str] = None
+    header_media_type: Optional[str] = None  # image | video | document
 
     @field_validator("trigger_type")
     @classmethod
@@ -2148,6 +2155,15 @@ class WhatsAppTemplate(BaseModel):
             raise ValueError(f"category must be one of {sorted(TEMPLATE_CATEGORIES)}")
         return v
 
+    @field_validator("header_media_type")
+    @classmethod
+    def validate_media_type(cls, v):
+        if v is None or v == "":
+            return None
+        if v not in MEDIA_TYPES:
+            raise ValueError(f"header_media_type must be one of {sorted(MEDIA_TYPES)}")
+        return v
+
 
 def _format_phone(to_phone: str, default_cc: str = "91") -> str:
     formatted = to_phone.replace(" ", "").replace("-", "").replace("+", "")
@@ -2160,7 +2176,9 @@ async def _send_via_aisensy(to_phone: str, template_name: str, language_code: st
                             body_params: List[str], header_param: Optional[str],
                             recipient_name: str = "",
                             tags: Optional[List[str]] = None,
-                            attributes: Optional[dict] = None) -> dict:
+                            attributes: Optional[dict] = None,
+                            media_url: Optional[str] = None,
+                            media_type: Optional[str] = None) -> dict:
     """Send a WhatsApp template message via AiSensy V2 Campaign API.
 
     NOTE: In AiSensy, `template_name` is the *Campaign Name* you created in the
@@ -2172,6 +2190,19 @@ async def _send_via_aisensy(to_phone: str, template_name: str, language_code: st
 
     formatted_phone = _format_phone(to_phone)
 
+    media_obj: dict = {}
+    if media_url:
+        # If a relative /api/uploads/... URL is stored, expand to absolute URL
+        # so AiSensy servers can fetch it.
+        public_url = media_url
+        if public_url.startswith("/"):
+            base = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
+            if not base:
+                base = os.environ.get("BASE_URL", "").rstrip("/")
+            if base:
+                public_url = f"{base}{media_url}"
+        media_obj = {"url": public_url, "filename": public_url.split("/")[-1]}
+
     payload = {
         "apiKey": AISENSY_API_KEY,
         "campaignName": template_name,
@@ -2179,7 +2210,7 @@ async def _send_via_aisensy(to_phone: str, template_name: str, language_code: st
         "userName": recipient_name or "Lead",
         "templateParams": [str(p) for p in (body_params or [])],
         "source": "visaxpert-website",
-        "media": {},
+        "media": media_obj,
         "buttons": [],
         "carouselCards": [],
         "location": {},
@@ -2265,7 +2296,9 @@ async def _send_via_bsp(to_phone: str, template_name: str, language_code: str,
 
 async def _send_whatsapp_api(to_phone: str, template_name: str, language_code: str,
                              body_params: List[str], header_param: Optional[str],
-                             recipient_name: str = "") -> dict:
+                             recipient_name: str = "",
+                             media_url: Optional[str] = None,
+                             media_type: Optional[str] = None) -> dict:
     """Unified entry point — dispatches to AiSensy or the legacy BSP based on
     the WHATSAPP_PROVIDER env var."""
     if WHATSAPP_PROVIDER == "aisensy":
@@ -2276,6 +2309,8 @@ async def _send_whatsapp_api(to_phone: str, template_name: str, language_code: s
             body_params=body_params,
             header_param=header_param,
             recipient_name=recipient_name,
+            media_url=media_url,
+            media_type=media_type,
         )
     return await _send_via_bsp(
         to_phone=to_phone,
@@ -2286,36 +2321,75 @@ async def _send_whatsapp_api(to_phone: str, template_name: str, language_code: s
     )
 
 
+async def _germany_fair_test_mode_enabled() -> bool:
+    if db is None:
+        return False
+    doc = await db.settings.find_one({"type": "germany_fair_test_mode"})
+    return bool(doc and doc.get("enabled"))
+
+
 async def _enqueue_germany_fair_messages(lead_id: str, lead_data: dict):
-    """On germany_fair lead, enqueue one scheduled message per active template."""
+    """On germany_fair lead, enqueue one scheduled message per active template.
+
+    Supports trigger types: immediate, days_before, same_day, fraction.
+    If germany_fair test mode is ON, ALL active templates are scheduled 1 minute
+    apart starting from now (regardless of their real trigger_type).
+    """
     now = datetime.now(timezone.utc)
     preferred = (lead_data.get("preferred_city") or "").strip()
     event_dt = GERMANY_FAIR_EVENT_DATES.get(preferred)
+    test_mode = await _germany_fair_test_mode_enabled()
 
     # Only germany_fair category templates (missing category = legacy => germany_fair)
     cursor = db.whatsapp_templates.find(
         {"active": True, "$or": [{"category": "germany_fair"}, {"category": {"$exists": False}}]},
         {"_id": 0},
-    )
+    ).sort("wa_template_name", 1)
     templates = await cursor.to_list(length=200)
     enqueued = 0
+    test_index = 0
+
     for tpl in templates:
         trigger = tpl.get("trigger_type", "immediate")
-        if trigger == "immediate":
+        send_hour = int(tpl.get("send_hour_utc", 4))
+        send_minute = int(tpl.get("send_minute_utc", 30))
+
+        if test_mode:
+            # Fire all of them 1 min apart for QA, in the order returned
+            scheduled_at = now + timedelta(minutes=test_index)
+            test_index += 1
+        elif trigger == "immediate":
             scheduled_at = now
-        else:
+        elif trigger == "fraction":
             if not event_dt:
-                # If no event date (e.g. user skipped preferred city), skip scheduled msgs
                 continue
-            send_hour = int(tpl.get("send_hour_utc", 4))
-            if trigger == "same_day":
-                scheduled_at = event_dt.replace(hour=send_hour, minute=0, second=0, microsecond=0)
-            else:  # days_before
-                days = int(tpl.get("days_before", 1))
-                scheduled_at = (event_dt - timedelta(days=days)).replace(
-                    hour=send_hour, minute=0, second=0, microsecond=0
-                )
-            # Skip if scheduled time already passed
+            delta = event_dt - now
+            if delta.total_seconds() <= 0:
+                continue
+            fraction = float(tpl.get("fraction", 0.5) or 0.5)
+            fraction = max(0.0, min(1.0, fraction))
+            scheduled_at = now + timedelta(seconds=delta.total_seconds() * fraction)
+            # Pin to the configured hour/minute in UTC
+            scheduled_at = scheduled_at.replace(
+                hour=send_hour, minute=send_minute, second=0, microsecond=0
+            )
+            if scheduled_at < now:
+                continue
+        elif trigger == "same_day":
+            if not event_dt:
+                continue
+            scheduled_at = event_dt.replace(
+                hour=send_hour, minute=send_minute, second=0, microsecond=0
+            )
+            if scheduled_at < now:
+                continue
+        else:  # days_before
+            if not event_dt:
+                continue
+            days = int(tpl.get("days_before", 1))
+            scheduled_at = (event_dt - timedelta(days=days)).replace(
+                hour=send_hour, minute=send_minute, second=0, microsecond=0
+            )
             if scheduled_at < now:
                 continue
 
@@ -2335,6 +2409,8 @@ async def _enqueue_germany_fair_messages(lead_id: str, lead_data: dict):
             "language_code": tpl.get("language_code", "en"),
             "body_params": body_vals,
             "header_param": header_val,
+            "header_media_url": tpl.get("header_media_url"),
+            "header_media_type": tpl.get("header_media_type"),
             "trigger_type": trigger,
             "scheduled_at": scheduled_at,
             "status": "pending",
@@ -2343,10 +2419,14 @@ async def _enqueue_germany_fair_messages(lead_id: str, lead_data: dict):
             "error": None,
             "response": None,
             "created_at": now,
+            "test_mode": test_mode,
         }
         await db.whatsapp_messages.insert_one(doc)
         enqueued += 1
-    logger.info(f"Enqueued {enqueued} WhatsApp messages for lead {lead_id} ({preferred})")
+    logger.info(
+        f"Enqueued {enqueued} WhatsApp messages for lead {lead_id} "
+        f"(city={preferred}, test_mode={test_mode})"
+    )
     return enqueued
 
 
@@ -2389,6 +2469,8 @@ async def _enqueue_main_landing_messages(lead_id: str, lead_data: dict, mode: st
             "language_code": tpl.get("language_code", "en"),
             "body_params": body_vals,
             "header_param": header_val,
+            "header_media_url": tpl.get("header_media_url"),
+            "header_media_type": tpl.get("header_media_type"),
             "trigger_type": trigger,
             "category": category,
             "scheduled_at": now,
@@ -2433,6 +2515,8 @@ async def _dispatch_pending_messages():
             body_params=msg.get("body_params", []),
             header_param=msg.get("header_param"),
             recipient_name=msg.get("name") or "",
+            media_url=msg.get("header_media_url"),
+            media_type=msg.get("header_media_type"),
         )
         if result.get("ok"):
             await db.whatsapp_messages.update_one(
@@ -2664,6 +2748,8 @@ async def send_wa_test(
         body_params=body_vals,
         header_param=header_val,
         recipient_name=test_name,
+        media_url=tpl.get("header_media_url"),
+        media_type=tpl.get("header_media_type"),
     )
     return {"result": result, "resolved_body_params": body_vals, "resolved_header": header_val}
 
@@ -2709,6 +2795,76 @@ async def wa_meta_info(email: str = Query(...), password: str = Query(...)):
             AISENSY_API_KEY if WHATSAPP_PROVIDER == "aisensy" else WHATSAPP_ACCESS_TOKEN
         ),
     }
+
+
+@api_router.get("/dashboard/whatsapp/gf-test-mode")
+async def gf_get_test_mode(email: str = Query(...), password: str = Query(...)):
+    """Germany Fair testing mode: when ON, every new germany_fair lead gets all
+    6 messages fired 1 min apart (ignores the real schedule)."""
+    verify_auth(email, password)
+    doc = await db.settings.find_one({"type": "germany_fair_test_mode"}, {"_id": 0})
+    return {
+        "enabled": bool(doc and doc.get("enabled")),
+        "updated_at": (doc or {}).get("updated_at").isoformat()
+            if doc and isinstance(doc.get("updated_at"), datetime) else None,
+    }
+
+
+@api_router.post("/dashboard/whatsapp/gf-test-mode")
+async def gf_set_test_mode(
+    payload: dict,
+    email: str = Query(...), password: str = Query(...),
+):
+    verify_auth(email, password)
+    enabled = bool(payload.get("enabled"))
+    await db.settings.update_one(
+        {"type": "germany_fair_test_mode"},
+        {"$set": {
+            "type": "germany_fair_test_mode",
+            "enabled": enabled,
+            "updated_at": datetime.now(timezone.utc),
+        }},
+        upsert=True,
+    )
+    return {"success": True, "enabled": enabled}
+
+
+@api_router.post("/dashboard/whatsapp/upload-media")
+async def upload_whatsapp_media(
+    file: UploadFile = File(...),
+    email: str = Query(...),
+    password: str = Query(...),
+):
+    """Upload an image or video for a WhatsApp template header. Returns a public URL."""
+    verify_auth(email, password)
+
+    allowed_images = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+    allowed_videos = {"video/mp4", "video/quicktime", "video/3gpp", "video/webm"}
+    allowed = allowed_images | allowed_videos
+
+    if file.content_type not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail="Only JPEG/PNG/WEBP/GIF images and MP4/MOV/3GP/WEBM videos allowed",
+        )
+
+    # 5MB images / 16MB videos
+    max_size = 16 * 1024 * 1024 if file.content_type in allowed_videos else 5 * 1024 * 1024
+    contents = await file.read()
+    if len(contents) > max_size:
+        max_mb = max_size // (1024 * 1024)
+        raise HTTPException(status_code=400, detail=f"File must be under {max_mb}MB")
+
+    ext = file.filename.split(".")[-1].lower() if "." in file.filename else "bin"
+    filename = f"wa-{uuid.uuid4().hex[:12]}.{ext}"
+    filepath = UPLOAD_DIR / filename
+    with open(filepath, "wb") as f:
+        f.write(contents)
+
+    media_type = "video" if file.content_type in allowed_videos else "image"
+    media_url = f"/api/uploads/{filename}"
+    logger.info(f"WhatsApp media uploaded: {media_type} -> {media_url}")
+    return {"success": True, "media_url": media_url, "media_type": media_type}
 
 
 # ==================== APP SETUP ====================
