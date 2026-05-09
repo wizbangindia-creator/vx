@@ -6,7 +6,7 @@
 User chose: install deps and run as-is (option **a**).
 
 ## What's live (2026-01-09)
-- Repo `wizbangindia-creator/vx` cloned into `/app` (preserving `.git`, `.emergent`, env files).
+- Repo `wizbangindia-creator/vx` cloned into `/app` (preserving git + env files).
 - Stack: React 19 (CRA + craco) + FastAPI + MongoDB, supervisor-managed.
 - Backend up on `:8001` — `GET /api/` → `{"message":"VisaXpert API","status":"running"}`, MongoDB connected, WhatsApp scheduler loop started.
 - Frontend up on `:3000`, served externally via `REACT_APP_BACKEND_URL`.
