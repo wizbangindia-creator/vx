@@ -87,7 +87,7 @@ const benefits = [
   { icon: Gift, title: "Upto \u20AC1000 Additional Discount", description: "Exclusive additional discount of up to \u20AC1000 on university tuition fees for all fair attendees", highlight: "Upto \u20AC1000 OFF", sub: "in tuition fee", color: "from-amber-400 to-orange-500" },
   { icon: Sparkles, title: "Upto 50% Fee Waiver", description: "Get upto 50% waiver on processing fees when you register at the fair", highlight: "Upto 50% WAIVER", sub: "in processing fee", color: "from-emerald-400 to-teal-500" },
   { icon: Users, title: "Meet University Reps", description: "Representatives of private universities & specialists of public universities are joining", highlight: "FACE-TO-FACE", sub: "", color: "from-blue-400 to-indigo-500" },
-  { icon: BadgeCheck, title: "Spot Admissions", description: "Get on-the-spot admission offers from participating universities", highlight: "INSTANT ADMIT", sub: "", color: "from-violet-400 to-purple-500" },
+  { icon: BadgeCheck, title: "Pre-screening for Admission", description: "Submit your profile at the fair for fast-track evaluation by university representatives", highlight: "FAST-TRACK", sub: "subject to university approval", color: "from-violet-400 to-purple-500" },
 ];
 
 // Countdown Hook
@@ -351,7 +351,12 @@ export default function GermanyFairPage() {
                     {isSubmitting ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> : <>Register for Free <ArrowRight size={18} /></>}
                   </button>
                 </form>
-                <p className="text-[10px] text-slate-400 mt-3 text-center">By registering, you agree to receive communications from VisaXpert</p>
+                <p className="text-[10px] text-slate-400 mt-3 text-center">
+                  By registering, you consent to be contacted by VisaXpert via phone, SMS, email or WhatsApp regarding the Germany Education Fair. See our{" "}
+                  <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-amber-600 underline" data-testid="fair-form-privacy-link">Privacy Policy</a>{" "}
+                  and{" "}
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-amber-600 underline" data-testid="fair-form-terms-link">Terms</a>. Discounts and fee waivers shown are indicative offers from participating universities, subject to their own approval.
+                </p>
               </div>
             </div>
           </div>
@@ -671,7 +676,14 @@ export default function GermanyFairPage() {
           </div>
           <div className="mt-8 pt-8 border-t border-slate-800 text-center text-xs text-slate-500">
             <p>Germany Education Fair 2026 by VisaXpert International. All rights reserved.</p>
-            <p className="mt-2">VisaXpert is a private organization. We do not guarantee visa approvals or admissions.</p>
+            <p className="mt-2">VisaXpert International is a private overseas-education consultancy and is not affiliated with any government body, embassy, consulate, or university. We do not guarantee visa approvals or admissions. Discounts, fee waivers and admission offers shown are indicative — they are subject to evaluation and approval by the respective universities. University logos are property of their owners and are shown only to indicate participation in this fair.</p>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-slate-400">
+              <a href="/privacy-policy" className="hover:text-white underline" data-testid="fair-footer-privacy-link">Privacy Policy</a>
+              <span className="text-slate-700">|</span>
+              <a href="/terms" className="hover:text-white underline" data-testid="fair-footer-terms-link">Terms of Service</a>
+              <span className="text-slate-700">|</span>
+              <a href="mailto:info@visaxpertinternational.co.in" className="hover:text-white underline">info@visaxpertinternational.co.in</a>
+            </div>
           </div>
         </div>
       </footer>

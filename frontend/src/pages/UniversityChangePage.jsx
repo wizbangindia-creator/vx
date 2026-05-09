@@ -637,6 +637,12 @@ export default function UniversityChangePage() {
                         <BadgeCheck className="w-3 h-3" /> No Obligation
                       </span>
                     </div>
+                    <p className="text-[10px] text-slate-400 mt-3 text-center leading-relaxed" data-testid="uc-form-consent">
+                      By submitting, you consent to be contacted by VisaXpert via phone, SMS, email or WhatsApp. See our{" "}
+                      <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-emerald-600 underline" data-testid="uc-form-privacy-link">Privacy Policy</a>{" "}
+                      and{" "}
+                      <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-emerald-600 underline" data-testid="uc-form-terms-link">Terms</a>. VisaXpert does not guarantee admissions or visa approvals.
+                    </p>
                   </>
                 )}
               </div>
@@ -960,8 +966,18 @@ export default function UniversityChangePage() {
             </div>
           </div>
 
-          <div className="border-t border-slate-800 mt-8 pt-8 text-center text-sm text-slate-400">
+          <div className="border-t border-slate-800 mt-8 pt-8 text-center text-sm text-slate-400 space-y-3">
             <p>© {new Date().getFullYear()} VisaXpert International. All rights reserved.</p>
+            <p className="text-xs text-slate-500 max-w-3xl mx-auto leading-relaxed">
+              VisaXpert International is a private overseas-education consultancy and is not affiliated with any government body, embassy, consulate, or university. We do not guarantee visa approvals or admissions. Any discounts, scholarships or fee waivers mentioned are indicative offers from participating universities, subject to their own evaluation and approval. University logos are property of their respective owners.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs">
+              <a href="/privacy-policy" className="hover:text-white underline" data-testid="uc-footer-privacy-link">Privacy Policy</a>
+              <span className="text-slate-700">|</span>
+              <a href="/terms" className="hover:text-white underline" data-testid="uc-footer-terms-link">Terms of Service</a>
+              <span className="text-slate-700">|</span>
+              <a href="mailto:info@visaxpertinternational.co.in" className="hover:text-white underline">info@visaxpertinternational.co.in</a>
+            </div>
           </div>
         </div>
       </footer>
