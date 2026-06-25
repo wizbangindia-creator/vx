@@ -9,6 +9,7 @@ import UniversityChangePage from "./pages/UniversityChangePage";
 import GermanyFairPage from "./pages/GermanyFairPage";
 import IeltsCelebrationPage from "./pages/IeltsCelebrationPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+import PrivacyPolicyBerlinPage from "./pages/PrivacyPolicyBerlinPage";
 import ImpressumPage from "./pages/ImpressumPage";
 import TermsPage from "./pages/TermsPage";
 import CountriesIndexPage from "./pages/CountriesIndexPage";
@@ -36,6 +37,7 @@ function App() {
             <Route path="/germany-fair" element={<GermanyFairPage />} />
             <Route path="/ielts-celebration" element={<IeltsCelebrationPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+            <Route path="/berlin/privacy-policy" element={<PrivacyPolicyBerlinPage />} />
             <Route path="/impressum" element={<ImpressumPage />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/countries" element={<CountriesIndexPage />} />

@@ -681,7 +681,7 @@ export default function UniversityChangePage() {
                     </div>
                     <p className="text-[10px] text-slate-400 mt-3 text-center leading-relaxed" data-testid="uc-form-consent">
                       By submitting, you consent to be contacted by VisaXpert via phone, SMS, email or WhatsApp. See our{" "}
-                      <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-emerald-600 underline" data-testid="uc-form-privacy-link">Privacy Policy</a>{" "}
+                      <a href="/berlin/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-emerald-600 underline" data-testid="uc-form-privacy-link">Privacy Policy</a>{" "}
                       and{" "}
                       <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-emerald-600 underline" data-testid="uc-form-terms-link">Terms</a>. VisaXpert does not guarantee admissions or visa approvals.
                     </p>
@@ -1015,7 +1015,7 @@ export default function UniversityChangePage() {
             <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs">
               <a href="/impressum" className="hover:text-white underline" data-testid="uc-footer-impressum-link">Impressum</a>
               <span className="text-slate-700">|</span>
-              <a href="/privacy-policy" className="hover:text-white underline" data-testid="uc-footer-privacy-link">Datenschutz / Privacy Policy</a>
+              <a href="/berlin/privacy-policy" className="hover:text-white underline" data-testid="uc-footer-privacy-link">Datenschutz / Privacy Policy</a>
               <span className="text-slate-700">|</span>
               <a href="/terms" className="hover:text-white underline" data-testid="uc-footer-terms-link">Terms of Service</a>
               <span className="text-slate-700">|</span>
