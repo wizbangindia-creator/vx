@@ -98,6 +98,7 @@ const eventSchedule = [
 const universities = [
   { name: "GISMA University of Applied Sciences", logo: "/assets/universities/germany/gisma.jpg" },
   { name: "Media University of Applied Sciences", logo: "/assets/universities/germany/media-university.webp" },
+  { name: "MDH University of Applied Sciences", logo: "/assets/universities/germany/mdh-university.png" },
   { name: "Arden University", logo: "/assets/universities/germany/arden.jpg" },
   { name: "BSBI University", logo: "/assets/universities/germany/bsbi.jpg" },
   { name: "Cologne Business School", logo: "/assets/universities/germany/cbs.svg" },
@@ -299,7 +300,7 @@ export default function GermanyFairPage() {
           <p className="text-lg md:text-xl text-neutral-600 max-w-2xl mx-auto mb-9">
             Meet 10+ German universities & public-university experts across Punjab & Jammu —
             with an additional{" "}
-            <span className="font-bold text-amber-600">{"\u20AC"}1000 discount exclusively for VisaXpert candidates</span>.
+            <span className="font-bold text-amber-600">upto {"\u20AC"}1000 discount exclusively for VisaXpert candidates</span>.
           </p>
 
           {/* THE HIGHLIGHT — No Fees ribbon */}
@@ -308,7 +309,7 @@ export default function GermanyFairPage() {
               <Wallet size={22} />
             </div>
             <div className="text-left">
-              <p className="text-lg sm:text-2xl font-black leading-none">No Fees Before Visa & After Visa</p>
+              <p className="text-lg sm:text-2xl font-black leading-none">No Fees Before & After Visa</p>
               <p className="text-white/80 text-xs sm:text-sm mt-1">Pay nothing before your visa — and nothing after. 100% transparent.</p>
             </div>
           </div>
@@ -433,7 +434,7 @@ export default function GermanyFairPage() {
                 <ul className="space-y-3">
                   {[
                     "No fees before & after visa",
-                    "\u20AC1000 VisaXpert-only discount",
+                    "upto \u20AC1000 VisaXpert-only discount",
                     "10+ universities & public experts",
                     "On-the-spot pre-screening",
                   ].map((t, i) => (
@@ -473,7 +474,7 @@ export default function GermanyFairPage() {
               <div className="absolute -right-8 -bottom-8 opacity-10"><Wallet size={180} /></div>
               <div className="relative">
                 <span className="inline-block px-3 py-1 rounded-full bg-white/15 text-xs font-black tracking-wider mb-4">OUR #1 HIGHLIGHT</span>
-                <h3 className="text-2xl md:text-3xl font-black mb-3 max-w-md">No Fees Before Visa & After Visa</h3>
+                <h3 className="text-2xl md:text-3xl font-black mb-3 max-w-md">No Fees Before & After Visa</h3>
                 <p className="text-white/85 max-w-lg">Our biggest promise — zero consultancy fees. Pay nothing before your visa and nothing after. No hidden charges, ever.</p>
               </div>
             </div>
@@ -482,8 +483,8 @@ export default function GermanyFairPage() {
             <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500 to-yellow-600 text-white p-8 shadow-xl shadow-amber-500/20" data-testid="benefit-card-1">
               <Gift size={28} className="mb-4" />
               <span className="inline-block px-3 py-1 rounded-full bg-white/20 text-xs font-black tracking-wider mb-3">EXCLUSIVE</span>
-              <h3 className="text-xl font-black mb-2">{"\u20AC"}1000 Discount</h3>
-              <p className="text-white/90 text-sm">An additional {"\u20AC"}1000 tuition discount offered <span className="font-bold">only to VisaXpert candidates</span>.</p>
+              <h3 className="text-xl font-black mb-2">Upto {"\u20AC"}1000 Discount</h3>
+              <p className="text-white/90 text-sm">An additional tuition discount of upto {"\u20AC"}1000 offered <span className="font-bold">only to VisaXpert candidates</span>.</p>
             </div>
 
             {/* 10+ universities */}
@@ -657,8 +658,8 @@ export default function GermanyFairPage() {
       <section className="py-16 md:py-24 relative overflow-hidden bg-gradient-to-br from-[#DD0000] to-red-700">
         <div className="absolute top-0 left-0 right-0 h-1.5"><FlagStripe /></div>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-6">No Fees Before Visa & After Visa</h2>
-          <p className="text-lg text-white/85 mb-8 max-w-2xl mx-auto">Pay nothing before or after your visa — plus a {"\u20AC"}1000 discount exclusively for VisaXpert candidates, and 10+ universities under one roof.</p>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-6">No Fees Before & After Visa</h2>
+          <p className="text-lg text-white/85 mb-8 max-w-2xl mx-auto">Pay nothing before or after your visa — plus a discount of upto {"\u20AC"}1000 exclusively for VisaXpert candidates, and 10+ universities under one roof.</p>
           <button onClick={scrollToForm} className="inline-flex items-center gap-2 px-8 py-4 bg-white text-[#DD0000] rounded-full font-bold text-lg hover:bg-amber-50 transition-all shadow-2xl" data-testid="cta-register-btn">
             Register Now — It's Free <ArrowRight size={20} />
           </button>
