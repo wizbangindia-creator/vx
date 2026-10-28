@@ -10,7 +10,7 @@ import { BRANCHES } from "../data/branches";
 
 const PHONE_DISPLAY = "+91 98759 85641";
 const PHONE_DIAL = "+919875985641";
-const EMAIL = "info@visaxpert.in";
+const EMAIL = "info@visaxpertinternational.co.in";
 
 export default function ContactPage() {
   return (

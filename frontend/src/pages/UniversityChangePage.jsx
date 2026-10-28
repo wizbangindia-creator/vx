@@ -1055,7 +1055,7 @@ export default function UniversityChangePage() {
               <span className="text-slate-700">|</span>
               <a href="/terms" className="hover:text-white underline" data-testid="uc-footer-terms-link">Terms of Service</a>
               <span className="text-slate-700">|</span>
-              <a href="mailto:sunil.arora@visaxpert.co" className="hover:text-white underline">sunil.arora@visaxpert.co</a>
+              <a href="mailto:info@visaxpertinternational.co.in" className="hover:text-white underline">info@visaxpertinternational.co.in</a>
             </div>
           </div>
         </div>

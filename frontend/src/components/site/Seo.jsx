@@ -64,7 +64,7 @@ const BRANCH_LD = ["Ludhiana", "Amritsar", "Jammu", "Pathankot", "Berlin"].map(
  */
 export default function Seo({
   title = "VisaXpert | Study Abroad Specialists Since 2012",
-  description = "ICEF-certified study abroad consultancy. 4000+ visas approved, 14+ years of experience. Germany, Canada, Australia, Ireland, Singapore, Dubai, Finland & Denmark — free consultation.",
+  description = "ICEF-certified study abroad consultancy. 4000+ visas approved, 14+ years of experience. Germany, Canada, Australia, Ireland, Netherlands, Sweden, Dubai, Finland & Denmark — free consultation.",
   path = "/",
   ogImage = "/assets/og-image.jpg",
   jsonLd,

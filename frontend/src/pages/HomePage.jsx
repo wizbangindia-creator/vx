@@ -39,7 +39,7 @@ const PHONE_DIAL = "+919875985641";
 // ─── Static content ────────────────────────────────────────────────────────
 const STATS = [
   { value: "14+",    label: "Years of expertise",    sub: "Since 2012",    Icon: Award },
-  { value: "4,000+", label: "Visas approved",        sub: "Across 8+ countries", Icon: ShieldCheck },
+  { value: "4,000+", label: "Visas approved",        sub: "Across 9 countries", Icon: ShieldCheck },
   { value: "5",      label: "Branches",              sub: "Punjab · Jammu · Berlin", Icon: MapPin },
   { value: "ICEF",   label: "Certified agency",      sub: "Trust by design", Icon: Sparkles },
 ];
@@ -56,7 +56,7 @@ const COUNTRIES = ALL_COUNTRIES.map((c) => ({
 const SERVICES = [
   { Icon: GraduationCap, title: "University admissions",  desc: "Profile evaluation, course-fit, applications & document review." },
   { Icon: FileText,      title: "Student visa filing",    desc: "End-to-end visa processing across 8+ embassies with success-rate focus." },
-  { Icon: Sparkles,      title: "IELTS / PTE coaching",   desc: "In-house trainers with proven score-jump batches every month." },
+  { Icon: Sparkles,      title: "Scholarship guidance",   desc: "We find and apply for scholarships and fee waivers that fit your profile." },
   { Icon: Plane,         title: "Pre-departure briefings",desc: "Travel, banking, SIM, accommodation — covered before you fly." },
   { Icon: Building2,     title: "University transfer",    desc: "Switching universities inside Germany? We make it stress-free." },
   { Icon: ShieldCheck,   title: "Post-arrival support",   desc: "Berlin office on-ground for housing, registration, jobs." },
@@ -83,11 +83,7 @@ const FAQS = [
   },
   {
     q: "Which countries does VisaXpert handle?",
-    a: "Germany, Canada, Australia, Ireland, Singapore, Dubai (UAE), Finland, Denmark, and select courses in other EU countries. Germany is our flagship — most trusted for that route."
-  },
-  {
-    q: "Do you offer IELTS / PTE coaching in-house?",
-    a: "Yes. Our trainers run small-batch classes daily across all five branches, with mock tests modelled on the actual exam pattern."
+    a: "Germany, Canada, Australia, Ireland, Netherlands, Sweden, Dubai (UAE), Finland, Denmark, and select courses in other EU countries. Germany is our flagship — most trusted for that route."
   },
   {
     q: "I'm already studying in Germany — can VisaXpert help me change universities?",
@@ -124,7 +120,7 @@ export default function HomePage() {
     <div className="font-body text-slate-800 bg-white selection:bg-blue-100 selection:text-blue-900">
       <Seo
         title="VisaXpert | Study Abroad Specialists Since 2012 · ICEF Certified"
-        description="VisaXpert is an ICEF-certified study abroad consultancy with 14+ years and 4000+ approved visas. Germany, Canada, Australia, Ireland, Singapore, Dubai, Finland & Denmark. Book a free consultation."
+        description="VisaXpert is an ICEF-certified study abroad consultancy with 14+ years and 4000+ approved visas. Germany, Canada, Australia, Ireland, Netherlands, Sweden, Dubai, Finland & Denmark. Book a free consultation."
         path="/"
         jsonLd={[HOMEPAGE_LD, FAQ_LD]}
       />
@@ -234,7 +230,7 @@ function Hero() {
               <span className="vx-gradient-text">to studying abroad.</span>
             </h1>
             <p className="mt-6 text-lg sm:text-xl text-slate-600 max-w-2xl leading-relaxed">
-              VisaXpert has guided <strong className="text-slate-900 font-semibold">4,000+ students</strong> across <strong className="text-slate-900 font-semibold">8 countries</strong> for over <strong className="text-slate-900 font-semibold">14 years</strong>. From Ludhiana to Berlin, we handle admissions, visa, IELTS — and the bits in between.
+              VisaXpert has guided <strong className="text-slate-900 font-semibold">4,000+ students</strong> across <strong className="text-slate-900 font-semibold">9 countries</strong> for over <strong className="text-slate-900 font-semibold">14 years</strong>. From Ludhiana to Berlin, we handle admissions, visa, IELTS — and the bits in between.
             </p>
 
             <div className="mt-9 flex flex-col sm:flex-row gap-3" data-testid="hero-cta-row">
@@ -388,7 +384,7 @@ function HeroLeadForm() {
                 className="vx-input"
                 data-testid="hero-form-country"
               >
-                {["Germany","Canada","Australia","Ireland","Singapore","Dubai (UAE)","Finland","Denmark","Not decided"].map((c) => (
+                {["Germany","Canada","Australia","Ireland","Netherlands","Sweden","Dubai (UAE)","Finland","Denmark","Not decided"].map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
@@ -464,7 +460,7 @@ function WhyUs() {
     { Icon: ShieldCheck,  title: "ICEF certified agency",      desc: "Globally recognised standards — the same body that universities trust." },
     { Icon: Award,        title: "Most trusted for Germany",   desc: "From admission to PR pathway, we're the operative experts in Germany." },
     { Icon: Users,        title: "Founded by Mr. Sunil Arora", desc: "Two decades of immigration experience leading every consultation." },
-    { Icon: Globe2,       title: "8+ countries handled",       desc: "One team, one process, working English-speaking destinations end-to-end." },
+    { Icon: Globe2,       title: "9 countries handled",       desc: "One team, one process, working English-speaking destinations end-to-end." },
     { Icon: Building2,    title: "Berlin office on-ground",    desc: "Real post-landing help — not a brochure, an actual office." },
     { Icon: TrendingUp,   title: "Outcome-first method",       desc: "We measure ourselves by approvals, not applications." },
   ];
@@ -671,7 +667,7 @@ function Branches() {
                   <Phone size={14} className="text-blue-600" /> +91 98759 85641
                 </p>
                 <p className="flex items-center gap-2 text-sm text-slate-700">
-                  <Mail size={14} className="text-blue-600" /> info@visaxpert.in
+                  <Mail size={14} className="text-blue-600" /> info@visaxpertinternational.co.in
                 </p>
                 <p className="flex items-center gap-2 text-sm text-slate-500">
                   <MapPin size={14} className="text-blue-600" /> Visit the branch page
@@ -795,7 +791,7 @@ function VideoStories() {
         {/* Trust strip + CTA */}
         <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
           <div className="flex items-center gap-5 text-sm text-slate-600">
-            <span className="flex items-center gap-2"><Globe2 size={15} className="text-blue-600" /> 8 countries</span>
+            <span className="flex items-center gap-2"><Globe2 size={15} className="text-blue-600" /> 9 countries</span>
             <span className="hidden sm:flex items-center gap-2"><GraduationCap size={15} className="text-blue-600" /> 4,000+ alumni</span>
             <span className="hidden md:flex items-center gap-2"><Award size={15} className="text-orange-600" /> ICEF certified</span>
           </div>

@@ -629,7 +629,7 @@ export default function IeltsCelebrationPage() {
               <h4 className="font-bold uppercase text-xs tracking-widest text-amber-400 mb-3">Get in Touch</h4>
               <ul className="space-y-2 text-sm text-white/70">
                 <li className="flex items-center gap-2"><Phone size={14} className="text-amber-300" /> <a href="tel:9875985641" className="hover:text-white">9875985641</a></li>
-                <li className="flex items-center gap-2"><Mail size={14} className="text-amber-300" /> <a href="mailto:info@visaxpert.com" className="hover:text-white">info@visaxpert.com</a></li>
+                <li className="flex items-center gap-2"><Mail size={14} className="text-amber-300" /> <a href="mailto:info@visaxpertinternational.co.in" className="hover:text-white">info@visaxpertinternational.co.in</a></li>
                 <li className="flex items-center gap-2"><MessageCircle size={14} className="text-emerald-400" />
                   <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noopener noreferrer" className="hover:text-white">WhatsApp us</a>
                 </li>

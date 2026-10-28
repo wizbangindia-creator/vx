@@ -12,7 +12,7 @@ export default function CountriesIndexPage() {
     <PageShell>
       <Seo
         title="Study Abroad Countries · VisaXpert"
-        description="VisaXpert handles 8 study-abroad destinations: Germany, Canada, Australia, Ireland, Singapore, Dubai (UAE), Finland & Denmark. Pick a country to see why it's worth your shortlist."
+        description="VisaXpert handles 9 study-abroad destinations: Germany, Canada, Australia, Ireland, Netherlands, Sweden, Dubai (UAE), Finland & Denmark. Pick a country to see why it's worth your shortlist."
         path="/countries"
       />
       <VxStyleTag />

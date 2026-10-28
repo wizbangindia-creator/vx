@@ -8,7 +8,7 @@ export const FAQ_CATEGORIES = [
     items: [
       {
         q: "Who is VisaXpert and how long have you been operating?",
-        a: "VisaXpert is an ICEF-certified study-abroad consultancy founded by Mr. Sunil Arora in 2012. Over 14 years we've placed 4000+ students across 8 countries from our offices in Ludhiana, Amritsar, Jammu, Pathankot and Berlin.",
+        a: "VisaXpert is an ICEF-certified study-abroad consultancy founded by Mr. Sunil Arora in 2012. Over 14 years we've placed 4000+ students across 9 countries from our offices in Ludhiana, Amritsar, Jammu, Pathankot and Berlin.",
       },
       {
         q: "What makes VisaXpert different from other consultants?",
@@ -94,25 +94,6 @@ export const FAQ_CATEGORIES = [
     ],
   },
   {
-    key: "ielts",
-    title: "IELTS / English Tests",
-    icon: "sparkles",
-    items: [
-      {
-        q: "Do you offer in-house IELTS coaching?",
-        a: "Yes — all five VisaXpert branches run daily IELTS / PTE batches with trainers who have personally taken the exams.",
-      },
-      {
-        q: "How long does it take to get a 7 band?",
-        a: "Most of our students reach 6.5–7 in 8–12 weeks of focused coaching combined with daily mock practice.",
-      },
-      {
-        q: "Is PTE accepted everywhere IELTS is?",
-        a: "PTE is accepted by all UK, Australia, NZ and Canadian universities, and increasingly by US/EU institutions. VisaXpert coaches both — pick whichever suits your strengths.",
-      },
-    ],
-  },
-  {
     key: "visa",
     title: "Visa & Documentation",
     icon: "shield",
@@ -127,7 +108,7 @@ export const FAQ_CATEGORIES = [
       },
       {
         q: "How long does a visa take to process?",
-        a: "It varies — Canada SDS: 4–6 weeks · Germany: 6–10 weeks · Australia: 4–8 weeks · Ireland: 4–6 weeks · Singapore: 2–3 weeks.",
+        a: "It varies — Canada SDS: 4–6 weeks · Germany: 6–10 weeks · Australia: 4–8 weeks · Ireland: 4–6 weeks · Netherlands: 2–4 weeks · Sweden: 4–8 weeks.",
       },
       {
         q: "What if my visa is rejected?",

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import CampaignLeadsManager from "../components/dashboard/CampaignLeads";
 import axios from "axios";
 import { toast } from "sonner";
 import {
@@ -502,6 +503,9 @@ export default function Dashboard() {
             <p className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Workspace</p>
             <div className="space-y-0.5">
               <NavItem icon={LayoutDashboard} label="Leads" active={activeTab === 'leads'} onClick={() => { setActiveTab('leads'); setSidebarOpen(false); }} testId="nav-leads" badge={totalLeads} />
+              {userInfo?.access !== 'university_change' && (
+                <NavItem icon={FileSpreadsheet} label="Campaign Leads" active={activeTab === 'campaign_leads'} onClick={() => { setActiveTab('campaign_leads'); setSidebarOpen(false); }} testId="nav-campaign-leads" />
+              )}
               <NavItem icon={Star} label="Reviews" active={activeTab === 'reviews'} onClick={() => { setActiveTab('reviews'); setSidebarOpen(false); }} testId="reviews-tab-btn" />
               <NavItem icon={MessageCircle} label="WhatsApp" active={activeTab === 'whatsapp'} onClick={() => { setActiveTab('whatsapp'); setSidebarOpen(false); }} testId="whatsapp-tab-btn" />
               <NavItem icon={Calendar} label="Bookings" active={activeTab === 'bookings'} onClick={() => { setActiveTab('bookings'); setSidebarOpen(false); }} testId="bookings-tab-btn" />
@@ -569,6 +573,7 @@ export default function Dashboard() {
                 <div className="min-w-0">
                   <h2 className="text-base sm:text-lg font-semibold text-slate-900 truncate">
                     {activeTab === 'leads' && 'Leads'}
+                    {activeTab === 'campaign_leads' && 'Campaign Leads'}
                     {activeTab === 'reviews' && 'Reviews'}
                     {activeTab === 'whatsapp' && 'WhatsApp'}
                     {activeTab === 'bookings' && 'Bookings'}
@@ -586,7 +591,7 @@ export default function Dashboard() {
 
               <div className="flex items-center gap-2">
                 {/* Sync pill (only main_landing / all access) */}
-                {(!userInfo || userInfo?.access !== 'university_change') && (
+                {userInfo?.access === 'all' && (
                   <button
                     onClick={handleSyncNow}
                     disabled={isSyncing}
@@ -628,7 +633,7 @@ export default function Dashboard() {
                     <>
                       <div className="fixed inset-0 z-30" onClick={() => setActionsOpen(false)} />
                       <div className="absolute right-0 mt-2 w-60 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden z-40">
-                        {(!userInfo || userInfo?.access !== 'university_change') && (
+                        {userInfo?.access === 'all' && (
                           <>
                             <ActionItem icon={Link} label="Sheets settings" onClick={() => { setActionsOpen(false); setShowSyncSettings(true); }} testId="sync-settings-btn" />
                             <ActionItem icon={Upload} label="Import leads" onClick={() => { setActionsOpen(false); setShowImporter(true); }} testId="import-btn" />
@@ -1061,6 +1066,8 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+        ) : activeTab === "campaign_leads" ? (
+        <CampaignLeadsManager credentials={credentials} />
         ) : activeTab === "whatsapp" ? (
         /* WhatsApp Hub: scheduled templates + IELTS settings + UC settings */
         <WhatsAppHub credentials={credentials} />

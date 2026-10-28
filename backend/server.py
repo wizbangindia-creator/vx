@@ -1277,13 +1277,7 @@ async def create_enquiry(input: EnquiryCreate):
         logger.error(f"Database error: {e}")
         lead_id = str(uuid.uuid4())
 
-    # Enqueue WhatsApp messages for active templates that match the mode
-    try:
-        asyncio.create_task(
-            _enqueue_main_landing_messages(lead_id, {**lead_data, "phone": input.phone}, mode)
-        )
-    except Exception as e:
-        logger.error(f"Failed to enqueue main-landing WhatsApp: {e}")
+    asyncio.create_task(send_routed_whatsapp("website", input.phone, input.name, doc_id=lead_id))
 
     # Fire welcome email (fire-and-forget)
     if input.email:
@@ -1461,9 +1455,9 @@ async def receive_webhook_lead(lead: WebhookLead):
         asyncio.create_task(send_university_change_whatsapp(
             phone, name, uc_wa_mode, lead_id
         ))
-    # Other sources (not university_change, not germany_fair, not ielts, not media_design_webinar): single legacy template
-    elif source not in ("university_change", "germany_fair", "ielts_celebration", "media_design_webinar") and phone:
-        asyncio.create_task(send_whatsapp_template_message(phone, name))
+    # Website quick-query forms: instant visaxpert_website template
+    elif source not in WEBSITE_WA_EXCLUDED_SOURCES and phone:
+        asyncio.create_task(send_routed_whatsapp("website", phone, name, doc_id=lead_id))
 
     # Germany Fair: also fire email 1 immediately and schedule emails 2 & 3
     if source == "germany_fair" and lead.email:
@@ -1729,9 +1723,8 @@ async def receive_ivr_webhook_get(request: Request):
             logger.error(f"Failed to save IVR lead: {e}")
             raise HTTPException(status_code=500, detail="Failed to save lead")
         
-        # Send IVR WhatsApp follow-up: 'call_connected' if talked, else 'call_notconnected'
         if phone:
-            asyncio.create_task(send_ivr_whatsapp(phone, status, extra_data.get("talk_duration", "0")))
+            asyncio.create_task(send_routed_whatsapp("ivr", phone, "", doc_id=lead_id))
         
         # Send to Google Sheets
         sheets_data = {
@@ -1842,9 +1835,8 @@ async def receive_ivr_webhook_post(request: Request):
             logger.error(f"Failed to save IVR lead: {e}")
             raise HTTPException(status_code=500, detail="Failed to save lead")
         
-        # Send IVR WhatsApp follow-up: 'call_connected' if talked, else 'call_notconnected'
         if phone:
-            asyncio.create_task(send_ivr_whatsapp(phone, status, talk_duration))
+            asyncio.create_task(send_routed_whatsapp("ivr", phone, "", doc_id=lead_id))
         
         # Send to Google Sheets
         sheets_data = {
@@ -2145,8 +2137,11 @@ async def fetch_google_sheet_csv(sheet_url: str) -> str:
     if not sheet_id:
         raise ValueError("Invalid Google Sheets URL or ID")
     
-    # Public CSV export URL
+    # Public CSV export URL (keeps the selected tab when the link has gid=)
     csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+    gid_match = re.search(r"[#&?]gid=(\d+)", sheet_url)
+    if gid_match:
+        csv_url += f"&gid={gid_match.group(1)}"
     
     try:
         async with httpx.AsyncClient(follow_redirects=True) as client:
@@ -4178,6 +4173,10 @@ async def _scheduler_loop():
             await _maybe_run_auto_sheet_sync()
         except Exception as e:
             logger.error(f"auto sheet sync error: {e}")
+        try:
+            await _maybe_run_campaign_sheet_sync()
+        except Exception as e:
+            logger.error(f"campaign sheet sync error: {e}")
         await asyncio.sleep(60)
 
 
@@ -5363,6 +5362,309 @@ async def uc_admin_cancel(booking_id: str,
         {"booking_id": booking_id, "status": "pending"},
         {"$set": {"status": "cancelled"}},
     )
+    return {"success": True}
+
+
+# ==================== AUTO WHATSAPP ROUTING (IVR / WEBSITE / CAMPAIGN SHEET) ====================
+
+DEFAULT_WA_ROUTES = {
+    "ivr": "visaxpert_ivr",
+    "website": "visaxpert_website",
+    "jammu": "visaxpert_interested_jammu",
+    "pathankot": "visaxpert_interested_pathankot",
+    "ludhiana": "visaxpert_interested_ludhiana",
+    "amritsar": "visaxpert_interested_amritsar",
+    "online": "visaxpert_online_counselling",
+}
+BRANCH_ROUTE_KEYS = ("jammu", "pathankot", "ludhiana", "amritsar", "online")
+WEBSITE_WA_EXCLUDED_SOURCES = {
+    "university_change", "germany_fair", "ielts_celebration", "media_design_webinar", "ivr_missed_call",
+}
+CAMPAIGN_COLUMN_COUNT = 8
+DEFAULT_CAMPAIGN_HEADINGS = ["Date", "Name", "Phone", "Email", "City", "Preferred Branch", "Country", "Campaign"]
+
+
+async def _get_wa_routes() -> dict:
+    doc = await db.settings.find_one({"type": "lead_wa_routes"}) or {}
+    return {
+        "templates": {**DEFAULT_WA_ROUTES, **(doc.get("templates") or {})},
+        "send_name_param": doc.get("send_name_param", True),
+    }
+
+
+def _branch_route_key(branch: str) -> Optional[str]:
+    b = (branch or "").strip().lower()
+    for key in BRANCH_ROUTE_KEYS:
+        if key in b:
+            return key
+    return None
+
+
+async def send_routed_whatsapp(route_key: Optional[str], phone: str, name: str = "",
+                               collection: str = "leads", id_field: str = "lead_id",
+                               doc_id: Optional[str] = None) -> dict:
+    routes = await _get_wa_routes()
+    template = routes["templates"].get(route_key or "", "")
+    if not phone:
+        result = {"ok": False, "error": "No phone number"}
+    elif not template:
+        result = {"ok": False, "error": "No template for this branch"}
+    else:
+        params = [name or "there"] if routes["send_name_param"] else []
+        result = await _send_whatsapp_api(
+            to_phone=phone, template_name=template, language_code="en",
+            body_params=params, header_param=None, recipient_name=name or "",
+        )
+    status = "sent" if result.get("ok") else "failed"
+    if doc_id:
+        await db[collection].update_one({id_field: doc_id}, {"$set": {"whatsapp": {
+            "template": template, "status": status,
+            "error": "" if result.get("ok") else str(result.get("error", ""))[:300],
+            "at": datetime.now(timezone.utc).isoformat(),
+        }}})
+    log = logger.info if result.get("ok") else logger.error
+    log(f"Routed WhatsApp [{route_key}] '{template}' to {phone}: {status} {result.get('error', '')[:200]}")
+    return result
+
+
+def _require_india_access(email: str, password: str) -> dict:
+    user = verify_auth(email, password)
+    if user["access"] == "university_change":
+        raise HTTPException(status_code=403, detail="Not allowed")
+    return user
+
+
+class WaRoutesIn(BaseModel):
+    templates: dict = Field(default_factory=dict)
+    send_name_param: bool = True
+
+
+@api_router.get("/dashboard/wa-routes")
+async def get_wa_routes(email: str = Query(...), password: str = Query(...)):
+    _require_india_access(email, password)
+    return await _get_wa_routes()
+
+
+@api_router.post("/dashboard/wa-routes")
+async def save_wa_routes(payload: WaRoutesIn, email: str = Query(...), password: str = Query(...)):
+    _require_india_access(email, password)
+    templates = {k: (payload.templates.get(k) or "").strip() for k in DEFAULT_WA_ROUTES}
+    await db.settings.update_one(
+        {"type": "lead_wa_routes"},
+        {"$set": {"type": "lead_wa_routes", "templates": templates, "send_name_param": payload.send_name_param}},
+        upsert=True,
+    )
+    return await _get_wa_routes()
+
+
+class CampaignColumn(BaseModel):
+    heading: str = ""
+    sheet_column: str = ""
+
+
+class CampaignSheetSettingsIn(BaseModel):
+    sheet_url: str
+    columns: List[CampaignColumn]
+    phone_col: int = 2
+    name_col: int = 1
+    branch_col: int = 5
+    auto_sync_enabled: bool = False
+    sync_interval_minutes: int = 15
+
+
+class CampaignSyncIn(BaseModel):
+    send_to_existing: bool = False
+
+
+def _campaign_settings_out(doc: Optional[dict]) -> dict:
+    doc = doc or {}
+    cols = doc.get("columns") or [{"heading": h, "sheet_column": ""} for h in DEFAULT_CAMPAIGN_HEADINGS]
+    return {
+        "sheet_url": doc.get("sheet_url", ""),
+        "columns": cols,
+        "phone_col": doc.get("phone_col", 2),
+        "name_col": doc.get("name_col", 1),
+        "branch_col": doc.get("branch_col", 5),
+        "auto_sync_enabled": doc.get("auto_sync_enabled", False),
+        "sync_interval_minutes": doc.get("sync_interval_minutes", 15),
+        "last_sync": doc.get("last_sync"),
+        "last_sync_result": doc.get("last_sync_result"),
+        "configured": bool(doc.get("sheet_url")),
+    }
+
+
+@api_router.get("/dashboard/campaign-sheet/settings")
+async def get_campaign_sheet_settings(email: str = Query(...), password: str = Query(...)):
+    _require_india_access(email, password)
+    return _campaign_settings_out(await db.settings.find_one({"type": "campaign_sheet"}))
+
+
+@api_router.post("/dashboard/campaign-sheet/settings")
+async def save_campaign_sheet_settings(payload: CampaignSheetSettingsIn,
+                                       email: str = Query(...), password: str = Query(...)):
+    _require_india_access(email, password)
+    if len(payload.columns) != CAMPAIGN_COLUMN_COUNT:
+        raise HTTPException(status_code=422, detail=f"Exactly {CAMPAIGN_COLUMN_COUNT} columns are required")
+    for idx in (payload.phone_col, payload.name_col, payload.branch_col):
+        if not 0 <= idx < CAMPAIGN_COLUMN_COUNT:
+            raise HTTPException(status_code=422, detail="Invalid column index")
+    await db.settings.update_one(
+        {"type": "campaign_sheet"},
+        {"$set": {
+            "type": "campaign_sheet",
+            "sheet_url": payload.sheet_url.strip(),
+            "columns": [c.model_dump() for c in payload.columns],
+            "phone_col": payload.phone_col,
+            "name_col": payload.name_col,
+            "branch_col": payload.branch_col,
+            "auto_sync_enabled": payload.auto_sync_enabled,
+            "sync_interval_minutes": max(5, payload.sync_interval_minutes),
+        }},
+        upsert=True,
+    )
+    return _campaign_settings_out(await db.settings.find_one({"type": "campaign_sheet"}))
+
+
+def _clean_phone(raw: str) -> str:
+    phone = re.sub(r"[^\d]", "", raw or "")
+    if phone.startswith("91") and len(phone) == 12:
+        phone = phone[2:]
+    if phone.startswith("0") and len(phone) == 11:
+        phone = phone[1:]
+    return phone
+
+
+async def _do_campaign_sheet_sync(send_to_existing: bool = False) -> dict:
+    settings = await db.settings.find_one({"type": "campaign_sheet"})
+    if not settings or not settings.get("sheet_url"):
+        raise HTTPException(status_code=400, detail="Connect a Google Sheet first")
+    first_sync = not settings.get("last_sync")
+    send_messages = send_to_existing or not first_sync
+
+    csv_text = await fetch_google_sheet_csv(settings["sheet_url"])
+    import csv as _csv
+    from io import StringIO
+    reader = _csv.DictReader(StringIO(csv_text))
+    lookup = {(h or "").strip().lower(): h for h in (reader.fieldnames or []) if h}
+    columns = settings["columns"]
+
+    imported = skipped = queued = 0
+    for row in reader:
+        values = []
+        for col in columns:
+            real = lookup.get((col.get("sheet_column") or "").strip().lower())
+            values.append(str(row.get(real) or "").strip() if real else "")
+        if not any(values):
+            skipped += 1
+            continue
+        phone = _clean_phone(values[settings.get("phone_col", 2)])
+        dedupe_key = phone or hashlib.sha256("|".join(values).encode()).hexdigest()
+        if await db.campaign_leads.find_one({"dedupe_key": dedupe_key}):
+            skipped += 1
+            continue
+        name = values[settings.get("name_col", 1)]
+        branch = values[settings.get("branch_col", 5)]
+        route_key = _branch_route_key(branch)
+        doc_id = str(uuid.uuid4())
+        await db.campaign_leads.insert_one({
+            "campaign_lead_id": doc_id,
+            "values": values,
+            "phone": phone,
+            "name": name,
+            "branch": branch,
+            "route_key": route_key,
+            "dedupe_key": dedupe_key,
+            "status": "new",
+            "whatsapp": None if send_messages else {
+                "template": "", "status": "skipped", "error": "Existing row at first connect",
+                "at": datetime.now(timezone.utc).isoformat(),
+            },
+            "created_at": datetime.now(timezone.utc),
+        })
+        imported += 1
+        if send_messages and phone:
+            queued += 1
+            asyncio.create_task(send_routed_whatsapp(
+                route_key, phone, name, collection="campaign_leads",
+                id_field="campaign_lead_id", doc_id=doc_id,
+            ))
+
+    msg = f"Imported {imported}, skipped {skipped}, WhatsApp queued {queued}"
+    await db.settings.update_one(
+        {"type": "campaign_sheet"},
+        {"$set": {"last_sync": datetime.now(timezone.utc).isoformat(), "last_sync_result": msg}},
+    )
+    logger.info(f"Campaign sheet sync: {msg}")
+    return {"success": True, "imported": imported, "skipped": skipped, "whatsapp_queued": queued, "message": msg}
+
+
+@api_router.post("/dashboard/campaign-sheet/sync")
+async def sync_campaign_sheet(payload: CampaignSyncIn, email: str = Query(...), password: str = Query(...)):
+    _require_india_access(email, password)
+    return await _do_campaign_sheet_sync(payload.send_to_existing)
+
+
+async def _maybe_run_campaign_sheet_sync():
+    if db is None:
+        return
+    s = await db.settings.find_one({"type": "campaign_sheet"})
+    if not s or not s.get("auto_sync_enabled") or not s.get("sheet_url") or not s.get("last_sync"):
+        return
+    last = datetime.fromisoformat(s["last_sync"])
+    if (datetime.now(timezone.utc) - last).total_seconds() < int(s.get("sync_interval_minutes", 15)) * 60:
+        return
+    await _do_campaign_sheet_sync()
+
+
+@api_router.get("/dashboard/campaign-leads")
+async def list_campaign_leads(
+    email: str = Query(...), password: str = Query(...),
+    page: int = Query(1, ge=1), per_page: int = Query(20, ge=1, le=200),
+    search: str = Query(""), branch: str = Query(""),
+):
+    _require_india_access(email, password)
+    query: dict = {}
+    if search:
+        rx = {"$regex": re.escape(search), "$options": "i"}
+        query["$or"] = [{"values": rx}, {"phone": rx}]
+    if branch:
+        query["route_key"] = None if branch == "none" else branch
+    total = await db.campaign_leads.count_documents(query)
+    cursor = db.campaign_leads.find(query, {"_id": 0, "dedupe_key": 0}).sort("created_at", -1) \
+        .skip((page - 1) * per_page).limit(per_page)
+    items = []
+    async for d in cursor:
+        d["created_at"] = d["created_at"].isoformat() if isinstance(d.get("created_at"), datetime) else d.get("created_at")
+        items.append(d)
+    settings = _campaign_settings_out(await db.settings.find_one({"type": "campaign_sheet"}))
+    return {
+        "headings": [c.get("heading") or f"Column {i + 1}" for i, c in enumerate(settings["columns"])],
+        "items": items,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+    }
+
+
+@api_router.post("/dashboard/campaign-leads/{lead_id}/resend")
+async def resend_campaign_whatsapp(lead_id: str, email: str = Query(...), password: str = Query(...)):
+    _require_india_access(email, password)
+    doc = await db.campaign_leads.find_one({"campaign_lead_id": lead_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    result = await send_routed_whatsapp(
+        _branch_route_key(doc.get("branch", "")), doc.get("phone", ""), doc.get("name", ""),
+        collection="campaign_leads", id_field="campaign_lead_id", doc_id=lead_id,
+    )
+    return {"success": bool(result.get("ok")), "error": result.get("error", "")}
+
+
+@api_router.delete("/dashboard/campaign-leads/{lead_id}")
+async def delete_campaign_lead(lead_id: str, email: str = Query(...), password: str = Query(...)):
+    _require_india_access(email, password)
+    res = await db.campaign_leads.delete_one({"campaign_lead_id": lead_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Lead not found")
     return {"success": True}
 
 

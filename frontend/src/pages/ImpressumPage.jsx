@@ -94,11 +94,11 @@ export default function ImpressumPage() {
             <p>
               <span className="text-slate-500">E-Mail:</span>{" "}
               <a
-                href="mailto:sunil.arora@visaxpert.co"
+                href="mailto:info@visaxpertinternational.co.in"
                 className="text-emerald-700 hover:underline"
                 data-testid="impressum-email"
               >
-                sunil.arora@visaxpert.co
+                info@visaxpertinternational.co.in
               </a>
             </p>
           </section>

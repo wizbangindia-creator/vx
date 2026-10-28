@@ -1,25 +1,16 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Phone, Mail, MapPin, Facebook, Instagram, Linkedin, Youtube } from "lucide-react";
+import { Phone, Mail, MapPin, Facebook, Instagram } from "lucide-react";
 import { COUNTRIES } from "../../data/countries";
 import { BRANCHES } from "../../data/branches";
 
 const LOGO = "/assets/visaxpert-logo.png";
 const PHONE_DISPLAY = "+91 98759 85641";
 const PHONE_DIAL = "+919875985641";
-const EMAIL = "info@visaxpert.in";
+const EMAIL = "info@visaxpertinternational.co.in";
 
 const BRANCHES_LIST = BRANCHES;
 const COUNTRIES_LIST = COUNTRIES;
-
-// Promoted landing pages — these live as separate campaign pages and are
-// reachable from the footer only (the homepage is the main entry).
-const LANDING_PAGES = [
-  { label: "Study Abroad",         to: "/study-abroad",      tag: "main" },
-  { label: "Germany Fair",         to: "/germany-fair",      tag: "event" },
-  { label: "IELTS Celebration",    to: "/ielts-celebration", tag: "offer" },
-  { label: "University Change",    to: "/university-change", tag: "service" },
-];
 
 export default function Footer() {
   return (
@@ -32,8 +23,8 @@ export default function Footer() {
               <img src={LOGO} alt="VisaXpert" className="h-10 w-auto" />
             </div>
             <p className="text-sm text-slate-400 leading-relaxed max-w-sm">
-              VisaXpert is an ICEF‑certified study abroad consultancy founded by Mr. Sunil Arora in 2012.
-              Over 4,000 students have started their international careers with us across 8+ countries.
+              VisaXpert is an ICEF‑certified study abroad consultancy since 2012.
+              Over 4,000 students have started their international careers with us across 9 countries.
             </p>
             <div className="space-y-2 text-sm">
               <a href={`tel:${PHONE_DIAL}`} className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors">
@@ -50,8 +41,6 @@ export default function Footer() {
               {[
                 { Icon: Facebook,  href: "https://facebook.com/visaxpert"  },
                 { Icon: Instagram, href: "https://instagram.com/visaxpert" },
-                { Icon: Linkedin,  href: "https://linkedin.com/company/visaxpert" },
-                { Icon: Youtube,   href: "https://youtube.com/@visaxpert"  },
               ].map(({ Icon, href }, i) => (
                 <a
                   key={i}
@@ -91,19 +80,11 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Promoted landing pages */}
+          {/* Help */}
           <div>
-            <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 mb-4">Programs</p>
-            <ul className="space-y-2 text-sm" data-testid="footer-landing-pages">
-              {LANDING_PAGES.map((p) => (
-                <li key={p.to}>
-                  <Link to={p.to} className="text-slate-400 hover:text-white transition-colors flex items-center gap-2">
-                    {p.label}
-                    <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{p.tag}</span>
-                  </Link>
-                </li>
-              ))}
-              <li className="pt-3 border-t border-slate-800 mt-3"><Link to="/faq" className="text-slate-400 hover:text-white transition-colors">FAQ</Link></li>
+            <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 mb-4">Help</p>
+            <ul className="space-y-2 text-sm" data-testid="footer-help-links">
+              <li><Link to="/faq" className="text-slate-400 hover:text-white transition-colors">FAQ</Link></li>
               <li><Link to="/contact" className="text-slate-400 hover:text-white transition-colors">Contact us</Link></li>
               <li><Link to="/privacy-policy" className="text-slate-400 hover:text-white transition-colors">Privacy policy</Link></li>
               <li><Link to="/terms" className="text-slate-400 hover:text-white transition-colors">Terms of service</Link></li>
@@ -113,7 +94,7 @@ export default function Footer() {
 
         <div className="mt-12 pt-6 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-slate-500">
           <p>© {new Date().getFullYear()} VisaXpert Visa &amp; Immigration Services. All rights reserved.</p>
-          <p>ICEF Certified · 14+ years · Founded by Mr. Sunil Arora</p>
+          <p>ICEF Certified · 14+ years</p>
         </div>
       </div>
     </footer>

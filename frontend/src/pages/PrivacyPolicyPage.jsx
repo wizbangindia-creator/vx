@@ -152,7 +152,7 @@ export default function PrivacyPolicyPage() {
             <p>
               VisaXpert UG (haftungsbeschränkt)<br />
               Belziger Straße 69-71, 10823 Berlin, Deutschland<br />
-              E-Mail: <a href="mailto:sunil.arora@visaxpert.co" className="text-emerald-700 underline">sunil.arora@visaxpert.co</a><br />
+              E-Mail: <a href="mailto:info@visaxpertinternational.co.in" className="text-emerald-700 underline">info@visaxpertinternational.co.in</a><br />
               Telefon: <a href="tel:+491784555932" className="text-emerald-700 underline">+49 1784555932</a><br />
               Eingetragen beim Amtsgericht Charlottenburg, HRB 287955 B.
             </p>
@@ -255,8 +255,8 @@ export default function PrivacyPolicyPage() {
             </ul>
             <p className="mt-3">
               Anfragen zu Ihren Rechten richten Sie bitte an{" "}
-              <a href="mailto:sunil.arora@visaxpert.co" className="text-emerald-700 underline">
-                sunil.arora@visaxpert.co
+              <a href="mailto:info@visaxpertinternational.co.in" className="text-emerald-700 underline">
+                info@visaxpertinternational.co.in
               </a>
               . Wir antworten innerhalb der gesetzlichen Frist von einem Monat.
             </p>

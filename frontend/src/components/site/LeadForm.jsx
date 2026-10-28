@@ -6,7 +6,7 @@ import { toast } from "sonner";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const COUNTRY_OPTIONS = [
-  "Germany", "Canada", "Australia", "Ireland", "Singapore",
+  "Germany", "Canada", "Australia", "Ireland", "Netherlands", "Sweden",
   "Dubai (UAE)", "Finland", "Denmark", "Not decided",
 ];
 
