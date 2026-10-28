@@ -30,7 +30,7 @@ export default function BranchesIndexPage() {
             Walk-in offices across<br /><span className="font-display italic text-slate-500">Punjab, Jammu & Berlin.</span>
           </h1>
           <p className="mt-5 text-lg text-slate-600 max-w-2xl">
-            Visit any branch for a free 15-minute consultation. Our Berlin office uniquely supports students after they land in Germany.
+            Visit any branch for a free 30-minute consultation. Our Berlin office uniquely supports students after they land in Germany.
           </p>
         </div>
       </section>
@@ -52,7 +52,8 @@ export default function BranchesIndexPage() {
               <p className="text-sm text-slate-600 mt-3 leading-relaxed line-clamp-2">{b.sub}</p>
               <div className="mt-5 pt-5 border-t border-slate-100 space-y-2 text-sm">
                 <p className="flex items-center gap-2 text-slate-700"><Phone size={14} className="text-blue-600" /> {b.phone}</p>
-                <p className="flex items-center gap-2 text-slate-700"><Clock size={14} className="text-blue-600" /> {b.hours[0]?.time || "Mon–Sat"}</p>
+                <p className="flex items-center gap-2 text-slate-700"><Clock size={14} className="text-blue-600" /> {b.hours[0] ? `${b.hours[0].day} ${b.hours[0].time}` : "Mon–Sat"}</p>
+                <p className="flex items-start gap-2 text-slate-600"><MapPin size={14} className="text-blue-600 mt-0.5 shrink-0" /> <span className="line-clamp-2">{b.address}</span></p>
               </div>
               <span className="inline-flex items-center gap-1 text-sm text-blue-700 font-semibold mt-5 group-hover:gap-2 transition-all">
                 Open page <ArrowRight size={13} />

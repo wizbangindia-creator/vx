@@ -17,7 +17,7 @@ export default function ContactPage() {
     <PageShell>
       <Seo
         title="Contact VisaXpert · Free consultation · 5 branches"
-        description="Get in touch with VisaXpert via phone, email or WhatsApp. Visit our 5 branches across Punjab, Jammu and Berlin. Free 15-minute consultation."
+        description="Get in touch with VisaXpert via phone, email or WhatsApp. Visit our 5 branches across Punjab, Jammu and Berlin. Free 30-minute consultation."
         path="/contact"
       />
       <VxStyleTag />
@@ -81,7 +81,7 @@ export default function ContactPage() {
                 <p className="text-sm text-slate-500 mt-1">{b.region}</p>
                 <div className="mt-5 pt-5 border-t border-slate-100 space-y-2.5 text-sm">
                   <p className="flex items-center gap-2 text-slate-700"><Phone size={14} className="text-blue-600" /> {b.phone}</p>
-                  <p className="flex items-center gap-2 text-slate-700"><Clock size={14} className="text-blue-600" /> {b.hours[0]?.time || "Mon–Sat"}</p>
+                  <p className="flex items-center gap-2 text-slate-700"><Clock size={14} className="text-blue-600" /> {b.hours[0] ? `${b.hours[0].day} ${b.hours[0].time}` : "Mon–Sat"}</p>
                 </div>
                 <span className="inline-flex items-center gap-1 text-sm text-blue-700 font-semibold mt-5 group-hover:gap-2 transition-all">
                   Open branch page <ArrowRight size={13} />
@@ -96,17 +96,9 @@ export default function ContactPage() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <SectionHeader eyebrow="On-ground in Germany" title="Our Berlin office" intro="Belziger Strasse 69-71, 10823 Berlin · supporting students after they land." />
-          <div className="mt-8 rounded-3xl overflow-hidden border border-slate-100 shadow-lg" style={{ height: 420 }}>
-            <iframe
-              title="VisaXpert Berlin office map"
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2429.45!2d13.346!3d52.488!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0!2sBelziger+Strasse+69-71+10823+Berlin!5e0!3m2!1sen!2sde!4v1700000000004"
-              width="100%"
-              height="100%"
-              style={{ border: 0 }}
-              loading="lazy"
-              allowFullScreen
-            />
-          </div>
+          <a href="https://www.google.com/maps/dir/?api=1&destination=Belziger+Strasse+69-71,+10823+Berlin" target="_blank" rel="noopener noreferrer" className="mt-8 inline-flex items-center gap-2 px-5 py-3 rounded-full bg-blue-700 text-white font-semibold hover:bg-blue-800" data-testid="contact-berlin-directions">
+            <MapPin size={16} /> Get directions
+          </a>
         </div>
       </section>
     </PageShell>

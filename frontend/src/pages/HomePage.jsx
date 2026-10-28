@@ -23,6 +23,8 @@ import {
   TrendingUp,
   PlayCircle,
   X as XIcon,
+  HeartHandshake,
+  Eye,
 } from "lucide-react";
 
 import Navbar from "../components/site/Navbar";
@@ -30,8 +32,10 @@ import Footer from "../components/site/Footer";
 import Seo from "../components/site/Seo";
 import { VIDEO_TESTIMONIALS } from "../data/videoTestimonials";
 import { COUNTRIES as ALL_COUNTRIES } from "../data/countries";
-import { BRANCHES as ALL_BRANCHES } from "../data/branches";
 import { toast } from "sonner";
+import { useEnquiry } from "../components/site/EnquiryModal";
+import OtherCountryCard from "../components/site/OtherCountryCard";
+import StudentSlider from "../components/site/StudentSlider";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const PHONE_DIAL = "+919875985641";
@@ -61,20 +65,6 @@ const SERVICES = [
   { Icon: Building2,     title: "University transfer",    desc: "Switching universities inside Germany? We make it stress-free." },
   { Icon: ShieldCheck,   title: "Post-arrival support",   desc: "Berlin office on-ground for housing, registration, jobs." },
 ];
-
-const BRANCHES = ALL_BRANCHES.map((b) => ({
-  city: b.city,
-  slug: b.slug,
-  country: b.region,
-  headline: b.tagline,
-  flag: b.flag || null,
-  accent:
-    b.slug === "ludhiana"  ? "bg-blue-50 text-blue-700"     :
-    b.slug === "amritsar"  ? "bg-emerald-50 text-emerald-700" :
-    b.slug === "jammu"     ? "bg-amber-50 text-amber-700"   :
-    b.slug === "pathankot" ? "bg-violet-50 text-violet-700" :
-                              "bg-rose-50 text-rose-700",
-}));
 
 const FAQS = [
   {
@@ -164,14 +154,14 @@ export default function HomePage() {
       <main className="pt-16 lg:pt-20">
         <Hero />
         <TrustBar />
+        <Approach />
         <WhyUs />
         <Countries />
         <Services />
         <BigNumbers />
         <Founder />
-        <Branches />
+        <StudentSlider />
         <VideoStories />
-        <Stories />
         <Faq />
         <ContactCta />
       </main>
@@ -183,6 +173,7 @@ export default function HomePage() {
 
 // ─── Hero ─────────────────────────────────────────────────────────────────
 function Hero() {
+  const { openEnquiry } = useEnquiry();
   return (
     <section className="relative overflow-hidden bg-white vx-passport-decor">
       <div className="absolute inset-0 vx-grid-bg pointer-events-none" />
@@ -230,18 +221,19 @@ function Hero() {
               <span className="vx-gradient-text">to studying abroad.</span>
             </h1>
             <p className="mt-6 text-lg sm:text-xl text-slate-600 max-w-2xl leading-relaxed">
-              VisaXpert has guided <strong className="text-slate-900 font-semibold">4,000+ students</strong> across <strong className="text-slate-900 font-semibold">9 countries</strong> for over <strong className="text-slate-900 font-semibold">14 years</strong>. From Ludhiana to Berlin, we handle admissions, visa, IELTS — and the bits in between.
+              VisaXpert has guided <strong className="text-slate-900 font-semibold">4,000+ students</strong> across <strong className="text-slate-900 font-semibold">9 countries</strong> for over <strong className="text-slate-900 font-semibold">14 years</strong>. From Ludhiana to Berlin, we handle admissions, visa — and the bits in between.
             </p>
 
             <div className="mt-9 flex flex-col sm:flex-row gap-3" data-testid="hero-cta-row">
-              <a
-                href="#contact"
+              <button
+                type="button"
+                onClick={() => openEnquiry({ origin: "home_hero" })}
                 className="group inline-flex items-center justify-center gap-2 px-6 py-4 rounded-full bg-slate-900 text-white font-semibold text-[15px] hover:bg-slate-800 transition-all shadow-[0_8px_30px_-6px_rgba(15,23,42,.45)] hover:-translate-y-0.5"
                 data-testid="hero-primary-cta"
               >
                 Book free consultation
                 <ArrowRight size={17} className="group-hover:translate-x-1 transition-transform" />
-              </a>
+              </button>
               <a
                 href={`tel:${PHONE_DIAL}`}
                 className="inline-flex items-center justify-center gap-2 px-6 py-4 rounded-full bg-white border-2 border-slate-200 text-slate-800 font-semibold text-[15px] hover:border-blue-400 hover:text-blue-700 transition-colors"
@@ -256,7 +248,6 @@ function Hero() {
                 "Same-day counselling",
                 "5 walk-in branches",
                 "Berlin on-ground team",
-                "No-cost consultation",
               ].map((b) => (
                 <div key={b} className="flex items-center gap-2">
                   <CheckCircle2 size={16} className="text-emerald-500" /> {b}
@@ -294,6 +285,7 @@ function HeroLeadForm() {
       return;
     }
     setSubmitting(true);
+    const country = form.country === "Other" ? (form.otherCountry || "").trim() || "Other" : form.country;
     try {
       await axios.post(`${API}/webhook/lead`, {
         name: form.name.trim(),
@@ -302,8 +294,8 @@ function HeroLeadForm() {
         source: "homepage",
         platform: "visaxpert.in",
         campaign: "home_hero_form",
-        country: form.country,
-        extra_data: { interested_country: form.country, channel: "homepage_hero" },
+        country,
+        extra_data: { interested_country: country, channel: "homepage_hero" },
       });
       setDone(true);
       toast.success("Got it! A counsellor will reach out within 24 hours.");
@@ -323,7 +315,7 @@ function HeroLeadForm() {
       >
         <div>
           <p className="inline-flex items-center gap-2 text-[11px] uppercase tracking-wider font-bold text-orange-600 bg-orange-50 px-2.5 py-1 rounded-full">
-            <Sparkles size={11} /> Free 15-min consultation
+            <Sparkles size={11} /> Free 30-min consultation
           </p>
           <h3 className="mt-3 text-2xl font-bold text-slate-900">
             Talk to a real counsellor today.
@@ -384,11 +376,16 @@ function HeroLeadForm() {
                 className="vx-input"
                 data-testid="hero-form-country"
               >
-                {["Germany","Canada","Australia","Ireland","Netherlands","Sweden","Dubai (UAE)","Finland","Denmark","Not decided"].map((c) => (
+                {[...ALL_COUNTRIES.map((c) => c.name), "Other"].map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
             </Field>
+            {form.country === "Other" && (
+              <Field label="Which country?">
+                <input type="text" value={form.otherCountry || ""} onChange={(e) => update("otherCountry", e.target.value)} placeholder="Type the country name" className="vx-input" data-testid="hero-form-other-country" />
+              </Field>
+            )}
             <button
               type="submit"
               disabled={submitting}
@@ -454,12 +451,45 @@ function TrustBar() {
   );
 }
 
+// ─── Approach ─────────────────────────────────────────────────────────────
+const APPROACH = [
+  { Icon: HeartHandshake, title: "Genuine", desc: "Advice that fits your profile and budget — never what simply earns us more." },
+  { Icon: Eye, title: "Transparent", desc: "Fees in writing, honest chances of success and full visibility of your file." },
+  { Icon: ShieldCheck, title: "Reliable", desc: "14+ years and 4,000+ visas, with one team from first call to landing day." },
+];
+
+function Approach() {
+  return (
+    <section className="py-16 lg:py-20 bg-slate-950 text-white" data-testid="home-approach">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-12 gap-10 items-center">
+        <div className="lg:col-span-4">
+          <p className="text-xs uppercase tracking-wider font-semibold text-blue-300">The VisaXpert approach</p>
+          <h2 className="mt-3 text-4xl lg:text-5xl font-display leading-[1.05]">Genuine. Transparent.<br /><span className="italic text-orange-300">Reliable.</span></h2>
+          <Link to="/about" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-white/80 hover:text-white" data-testid="home-approach-about-link">
+            Meet the people behind it <ArrowRight size={14} />
+          </Link>
+        </div>
+        <div className="lg:col-span-8 grid sm:grid-cols-3 gap-4">
+          {APPROACH.map((a) => (
+            <div key={a.title} className="rounded-3xl bg-white/5 border border-white/10 p-6 hover:bg-white/10 transition-colors" data-testid={`home-approach-${a.title.toLowerCase()}`}>
+              <a.Icon size={24} className="text-orange-300" />
+              <h3 className="mt-5 text-2xl font-display">{a.title}</h3>
+              <p className="mt-2 text-sm text-slate-300 leading-relaxed">{a.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
 // ─── Why us ───────────────────────────────────────────────────────────────
 function WhyUs() {
   const items = [
     { Icon: ShieldCheck,  title: "ICEF certified agency",      desc: "Globally recognised standards — the same body that universities trust." },
     { Icon: Award,        title: "Most trusted for Germany",   desc: "From admission to PR pathway, we're the operative experts in Germany." },
-    { Icon: Users,        title: "Founded by Mr. Sunil Arora", desc: "Two decades of immigration experience leading every consultation." },
+    { Icon: Users,        title: "Founded by Sunil Arora & Rajesh Joshi", desc: "Two founders personally invested in every student's outcome since 2012." },
     { Icon: Globe2,       title: "9 countries handled",       desc: "One team, one process, working English-speaking destinations end-to-end." },
     { Icon: Building2,    title: "Berlin office on-ground",    desc: "Real post-landing help — not a brochure, an actual office." },
     { Icon: TrendingUp,   title: "Outcome-first method",       desc: "We measure ourselves by approvals, not applications." },
@@ -500,7 +530,7 @@ function Countries() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <SectionHeader
           eyebrow="Countries we serve"
-          title={<>Eight destinations.<br /><span className="font-display italic text-slate-500">One trusted team.</span></>}
+          title={<>Nine destinations.<br /><span className="font-display italic text-slate-500">One trusted team.</span></>}
           intro="Each country has its own playbook in our office. We work the embassy, the universities, and the post-arrival nuts and bolts."
         />
         <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -523,6 +553,7 @@ function Countries() {
               </span>
             </Link>
           ))}
+          <OtherCountryCard />
         </div>
       </div>
     </section>
@@ -581,7 +612,7 @@ function BigNumbers() {
             { v: "4,000+", l: "Successful visas" },
             { v: "14+",    l: "Years of trust" },
             { v: "97%",    l: "Visa-approval rate" },
-            { v: "8",      l: "Countries handled" },
+            { v: "9",      l: "Countries handled" },
           ].map((n) => (
             <div key={n.l} className="rounded-3xl bg-white/5 border border-white/10 p-7 hover:bg-white/10 transition-colors">
               <p className="text-5xl lg:text-6xl font-display text-white leading-none">{n.v}</p>
@@ -637,65 +668,6 @@ function Founder() {
   );
 }
 
-// ─── Branches ──────────────────────────────────────────────────────────────
-function Branches() {
-  return (
-    <section id="branches" className="py-20 lg:py-28 bg-slate-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <SectionHeader
-          eyebrow="Branches"
-          title={<>Five offices. <br /><span className="font-display italic text-slate-500">One reliable team.</span></>}
-          intro="Walk-in counselling across Punjab and Jammu. Plus a real Berlin office for after you land."
-        />
-        <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {BRANCHES.map((b) => (
-            <Link
-              to={`/branches/${b.slug}`}
-              key={b.city}
-              className="group p-7 rounded-3xl bg-white border border-slate-100 hover:border-blue-200 hover:shadow-xl transition-all hover:-translate-y-1 block"
-              data-testid={`branch-card-${b.city}`}
-            >
-              <span className={`inline-block text-[10px] uppercase tracking-wider font-bold px-2.5 py-1 rounded-full ${b.accent}`}>
-                {b.headline}
-              </span>
-              <h3 className="mt-4 text-2xl font-display text-slate-900">
-                VisaXpert &middot; {b.city} {b.flag && <span className="text-xl ml-1">{b.flag}</span>}
-              </h3>
-              <p className="text-sm text-slate-500 mt-1">{b.country}</p>
-              <div className="mt-5 pt-5 border-t border-slate-100 space-y-2.5">
-                <p className="flex items-center gap-2 text-sm text-slate-700">
-                  <Phone size={14} className="text-blue-600" /> +91 98759 85641
-                </p>
-                <p className="flex items-center gap-2 text-sm text-slate-700">
-                  <Mail size={14} className="text-blue-600" /> info@visaxpertinternational.co.in
-                </p>
-                <p className="flex items-center gap-2 text-sm text-slate-500">
-                  <MapPin size={14} className="text-blue-600" /> Visit the branch page
-                </p>
-              </div>
-              <span className="inline-flex items-center gap-1 text-sm text-blue-700 font-semibold mt-5 group-hover:gap-2 transition-all">
-                Open branch <ArrowRight size={13} />
-              </span>
-            </Link>
-          ))}
-          <Link to="/branches" className="p-7 rounded-3xl bg-gradient-to-br from-blue-700 to-blue-600 text-white shadow-xl shadow-blue-600/20 hover:shadow-2xl transition-all block">
-            <span className="inline-block text-[10px] uppercase tracking-wider font-bold px-2.5 py-1 rounded-full bg-white/15">
-              Visit any branch
-            </span>
-            <h3 className="mt-4 text-2xl font-display">Prefer to walk in?</h3>
-            <p className="text-sm text-blue-100 mt-2 leading-relaxed">
-              Drop by any VisaXpert office for an in-person consultation. We're open six days a week.
-            </p>
-            <span className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-white text-blue-700 font-semibold text-sm">
-              See all branches <ArrowRight size={15} />
-            </span>
-          </Link>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 // ─── Video testimonials ───────────────────────────────────────────────────
 function VideoStories() {
   const [active, setActive] = useState(null); // currently-playing entry
@@ -734,7 +706,7 @@ function VideoStories() {
             Real students.<br /><span className="font-display italic text-slate-500">Real journeys.</span>
           </h2>
           <p className="mt-5 text-slate-600 text-lg max-w-2xl leading-relaxed">
-            Eight countries. One trusted team. Tap any story to watch a student tell you exactly what working with VisaXpert was like.
+            Nine countries. One trusted team. Tap any story to watch a student tell you exactly what working with VisaXpert was like.
           </p>
         </div>
 
@@ -839,55 +811,6 @@ function VideoStories() {
   );
 }
 
-// ─── Reviews / Stories ─────────────────────────────────────────────────────
-function Stories() {
-  const [reviews, setReviews] = useState([]);
-
-  useEffect(() => {
-    let mounted = true;
-    axios
-      .get(`${API}/reviews?limit=8`)
-      .then((res) => {
-        if (mounted && Array.isArray(res.data)) setReviews(res.data);
-      })
-      .catch(() => {});
-    return () => { mounted = false; };
-  }, []);
-
-  // Sensible fallback when the DB has no reviews yet so the section is never empty.
-  const display = reviews.length > 0 ? reviews : [
-    { name: "Aman Singh",   country: "Germany", rating: 5, message: "VisaXpert turned a confusing process into a clear plan. Berlin team handled even my housing." },
-    { name: "Riya Kapoor",  country: "Canada",  rating: 5, message: "Got my SDS visa stamped in 18 days. The team's documentation is genuinely next-level." },
-    { name: "Karan Mehra",  country: "Ireland", rating: 5, message: "Sunil sir personally guided my Ireland file. Great post-arrival support too." },
-  ];
-
-  return (
-    <section id="stories" className="py-20 lg:py-28 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <SectionHeader
-          eyebrow="Stories"
-          title={<>4000+ students.<br /><span className="font-display italic text-slate-500">One trusted team.</span></>}
-          intro="A few words from students who chose VisaXpert — and where it took them."
-        />
-        <div className="mt-12 grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {display.slice(0, 6).map((r, i) => (
-            <div key={i} className="p-7 rounded-3xl bg-slate-50 border border-slate-100" data-testid={`story-card-${i}`}>
-              <div className="flex items-center gap-1 text-amber-500 mb-3">
-                {Array.from({ length: r.rating || 5 }).map((_, k) => (<Star key={k} size={14} fill="currentColor" />))}
-              </div>
-              <p className="text-slate-700 leading-relaxed">"{r.message || r.review || r.text}"</p>
-              <div className="mt-5 pt-5 border-t border-slate-200 flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-900">{r.name}</p>
-                {r.country && <p className="text-xs text-slate-500">{r.country}</p>}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 // ─── FAQ ───────────────────────────────────────────────────────────────────
 function Faq() {
   const [open, setOpen] = useState(0);
@@ -937,7 +860,7 @@ function ContactCta() {
                 Talk to a counsellor
               </p>
               <h2 className="mt-4 text-4xl lg:text-6xl font-display leading-[1.05]">
-                Your future abroad,<br /> starts with a 15-min call.
+                Your future abroad,<br /> starts with a 30-min call.
               </h2>
               <p className="mt-5 text-slate-300 text-lg max-w-md leading-relaxed">
                 No pressure, no signup. Just a real counsellor helping you make the right choice — for free.

@@ -2,20 +2,22 @@ import React, { useEffect, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { Menu, X, Phone, ChevronDown } from "lucide-react";
 import { COUNTRIES } from "../../data/countries";
+import { useEnquiry } from "./EnquiryModal";
 
 const LOGO = "/assets/visaxpert-logo.png";
 const PHONE_DISPLAY = "+91 98759 85641";
 const PHONE_DIAL = "+919875985641";
 
 const NAV_LINKS = [
-  { label: "Branches", to: "/branches" },
-  { label: "About",    to: "/#why" },
-  { label: "Stories",  to: "/#stories" },
+  { label: "Our Branches", to: "/branches" },
+  { label: "About",    to: "/about" },
+  { label: "Stories",  to: "/student-stories" },
   { label: "FAQ",      to: "/faq" },
   { label: "Contact",  to: "/contact" },
 ];
 
 export default function Navbar() {
+  const { openEnquiry } = useEnquiry();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [countriesOpen, setCountriesOpen] = useState(false);
@@ -108,13 +110,14 @@ export default function Navbar() {
             >
               <Phone size={15} /> {PHONE_DISPLAY}
             </a>
-            <Link
-              to="/contact"
+            <button
+              type="button"
+              onClick={() => openEnquiry({ origin: "navbar" })}
               className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-gradient-to-r from-blue-700 to-blue-600 text-white text-sm font-semibold shadow-md shadow-blue-600/20 hover:shadow-lg hover:shadow-blue-600/30 hover:-translate-y-0.5 transition-all"
               data-testid="navbar-cta"
             >
               Book free call
-            </Link>
+            </button>
             <button
               onClick={() => setOpen(!open)}
               className="lg:hidden p-2 rounded-lg hover:bg-slate-100"
@@ -148,9 +151,9 @@ export default function Navbar() {
             <a href={`tel:${PHONE_DIAL}`} className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-blue-700 font-medium text-sm">
               <Phone size={15} /> {PHONE_DISPLAY}
             </a>
-            <Link to="/contact" className="block text-center mt-2 px-4 py-3 rounded-full bg-gradient-to-r from-blue-700 to-blue-600 text-white font-semibold shadow-md">
+            <button type="button" onClick={() => { setOpen(false); openEnquiry({ origin: "navbar_mobile" }); }} className="block w-full text-center mt-2 px-4 py-3 rounded-full bg-gradient-to-r from-blue-700 to-blue-600 text-white font-semibold shadow-md" data-testid="navbar-mobile-cta">
               Book free call
-            </Link>
+            </button>
           </div>
         </div>
       )}

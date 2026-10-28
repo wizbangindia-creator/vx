@@ -6,6 +6,7 @@ import PageShell from "../components/site/PageShell";
 import Seo from "../components/site/Seo";
 import VxStyleTag, { SectionHeader } from "../components/site/VxStyle";
 import { COUNTRIES } from "../data/countries";
+import OtherCountryCard from "../components/site/OtherCountryCard";
 
 export default function CountriesIndexPage() {
   return (
@@ -27,7 +28,7 @@ export default function CountriesIndexPage() {
           </nav>
           <p className="text-xs uppercase tracking-wider font-semibold text-blue-700 flex items-center gap-2"><Globe2 size={13} /> Countries we serve</p>
           <h1 className="mt-4 text-[44px] sm:text-[58px] lg:text-[72px] leading-[1.04] tracking-tight font-display text-slate-900">
-            Eight destinations.<br /><span className="font-display italic text-slate-500">One trusted team.</span>
+            Nine destinations.<br /><span className="font-display italic text-slate-500">One trusted team.</span>
           </h1>
           <p className="mt-5 text-lg text-slate-600 max-w-2xl">Each market has its own visa playbook in our office. Pick a country to read why it deserves a serious look.</p>
         </div>
@@ -54,6 +55,7 @@ export default function CountriesIndexPage() {
               </span>
             </Link>
           ))}
+          <OtherCountryCard testId="countries-index-other" />
         </div>
       </section>
     </PageShell>

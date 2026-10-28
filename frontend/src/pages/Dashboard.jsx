@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import CampaignLeadsManager from "../components/dashboard/CampaignLeads";
+import ProfilesManager from "../components/dashboard/ProfilesManager";
 import axios from "axios";
 import { toast } from "sonner";
 import {
@@ -518,6 +519,8 @@ export default function Dashboard() {
               <NavItem icon={ImageIcon} label="Header Logo" active={activeTab === 'logos'} onClick={() => { setActiveTab('logos'); setSidebarOpen(false); }} testId="logos-tab-btn" />
               <NavItem icon={ImageIcon} label="Partner Logos" active={activeTab === 'partner_logos'} onClick={() => { setActiveTab('partner_logos'); setSidebarOpen(false); }} testId="partner-logos-tab-btn" />
               <NavItem icon={Sparkles} label="Anniversary Stories" active={activeTab === 'success_stories'} onClick={() => { setActiveTab('success_stories'); setSidebarOpen(false); }} testId="success-stories-tab-btn" />
+              <NavItem icon={Users} label="Team" active={activeTab === 'team'} onClick={() => { setActiveTab('team'); setSidebarOpen(false); }} testId="team-tab-btn" />
+              <NavItem icon={GraduationCap} label="Student Testimonials" active={activeTab === 'testimonials'} onClick={() => { setActiveTab('testimonials'); setSidebarOpen(false); }} testId="testimonials-tab-btn" />
             </div>
           </div>
         </nav>
@@ -574,6 +577,8 @@ export default function Dashboard() {
                   <h2 className="text-base sm:text-lg font-semibold text-slate-900 truncate">
                     {activeTab === 'leads' && 'Leads'}
                     {activeTab === 'campaign_leads' && 'Campaign Leads'}
+                    {activeTab === 'team' && 'Team'}
+                    {activeTab === 'testimonials' && 'Student testimonials'}
                     {activeTab === 'reviews' && 'Reviews'}
                     {activeTab === 'whatsapp' && 'WhatsApp'}
                     {activeTab === 'bookings' && 'Bookings'}
@@ -1068,6 +1073,8 @@ export default function Dashboard() {
         </div>
         ) : activeTab === "campaign_leads" ? (
         <CampaignLeadsManager credentials={credentials} />
+        ) : activeTab === "team" || activeTab === "testimonials" ? (
+        <ProfilesManager key={activeTab} credentials={credentials} kind={activeTab} />
         ) : activeTab === "whatsapp" ? (
         /* WhatsApp Hub: scheduled templates + IELTS settings + UC settings */
         <WhatsAppHub credentials={credentials} />

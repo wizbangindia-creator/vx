@@ -16,7 +16,7 @@ export const FAQ_CATEGORIES = [
       },
       {
         q: "Is the first consultation really free?",
-        a: "Yes. The first 15–30 minute consultation is free of cost — whether you walk in, call, or video-meet. No obligation to enroll.",
+        a: "Yes. The first 30-minute consultation is free of cost — whether you walk in, call, or video-meet. No obligation to enroll.",
       },
       {
         q: "Do you work with Indian students only?",

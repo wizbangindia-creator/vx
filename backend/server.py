@@ -5685,6 +5685,111 @@ async def delete_campaign_lead(lead_id: str, email: str = Query(...), password: 
     return {"success": True}
 
 
+# ==================== TEAM & STUDENT TESTIMONIALS ====================
+
+PROFILE_COLLECTIONS = {
+    "team": {"collection": "team_members", "text_fields": ["name", "designation"]},
+    "testimonials": {"collection": "student_testimonials", "text_fields": ["name", "country", "review"]},
+}
+
+
+def _profile_out(d: dict) -> dict:
+    if isinstance(d.get("created_at"), datetime):
+        d["created_at"] = d["created_at"].isoformat()
+    return d
+
+
+def _profile_cfg(kind: str) -> dict:
+    cfg = PROFILE_COLLECTIONS.get(kind)
+    if not cfg:
+        raise HTTPException(status_code=404, detail="Not found")
+    return cfg
+
+
+@api_router.get("/profiles/{kind}")
+async def public_list_profiles(kind: str):
+    cfg = _profile_cfg(kind)
+    items = await db[cfg["collection"]].find({"is_active": True}, {"_id": 0}).sort([("order", 1), ("created_at", -1)]).to_list(500)
+    return {"items": [_profile_out(i) for i in items]}
+
+
+@api_router.get("/profiles/{kind}/{profile_id}")
+async def public_get_profile(kind: str, profile_id: str):
+    cfg = _profile_cfg(kind)
+    doc = await db[cfg["collection"]].find_one({"profile_id": profile_id, "is_active": True}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Not found")
+    return _profile_out(doc)
+
+
+@api_router.get("/dashboard/profiles/{kind}")
+async def admin_list_profiles(kind: str, email: str = Query(...), password: str = Query(...)):
+    verify_auth(email, password)
+    cfg = _profile_cfg(kind)
+    items = await db[cfg["collection"]].find({}, {"_id": 0}).sort([("order", 1), ("created_at", -1)]).to_list(1000)
+    return {"items": [_profile_out(i) for i in items]}
+
+
+@api_router.post("/dashboard/profiles/{kind}")
+async def admin_create_profile(
+    kind: str,
+    file: UploadFile = File(...),
+    name: str = Form(...),
+    designation: str = Form(""),
+    country: str = Form(""),
+    review: str = Form(""),
+    order: int = Form(0),
+    email: str = Query(...),
+    password: str = Query(...),
+):
+    verify_auth(email, password)
+    cfg = _profile_cfg(kind)
+    if file.content_type not in ("image/jpeg", "image/png", "image/webp", "image/gif"):
+        raise HTTPException(status_code=400, detail="Only JPEG, PNG, WebP and GIF allowed")
+    contents = await file.read()
+    if len(contents) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image must be under 5MB")
+    values = {"name": name.strip(), "designation": designation.strip(), "country": country.strip(), "review": review.strip()}
+    missing = [f for f in cfg["text_fields"] if not values[f]]
+    if missing:
+        raise HTTPException(status_code=422, detail=f"Missing: {', '.join(missing)}")
+    ext = file.filename.split(".")[-1].lower() if "." in file.filename else "jpg"
+    image_url = await save_upload(f"{kind}-{uuid.uuid4().hex[:10]}.{ext}", file.content_type, contents)
+    doc = {
+        "profile_id": str(uuid.uuid4()),
+        **{f: values[f] for f in cfg["text_fields"]},
+        "image_url": image_url,
+        "order": order,
+        "is_active": True,
+        "created_at": datetime.now(timezone.utc),
+    }
+    await db[cfg["collection"]].insert_one(doc)
+    doc.pop("_id", None)
+    return _profile_out(doc)
+
+
+@api_router.patch("/dashboard/profiles/{kind}/{profile_id}/toggle")
+async def admin_toggle_profile(kind: str, profile_id: str, email: str = Query(...), password: str = Query(...)):
+    verify_auth(email, password)
+    cfg = _profile_cfg(kind)
+    doc = await db[cfg["collection"]].find_one({"profile_id": profile_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Not found")
+    new_state = not doc.get("is_active", True)
+    await db[cfg["collection"]].update_one({"profile_id": profile_id}, {"$set": {"is_active": new_state}})
+    return {"success": True, "is_active": new_state}
+
+
+@api_router.delete("/dashboard/profiles/{kind}/{profile_id}")
+async def admin_delete_profile(kind: str, profile_id: str, email: str = Query(...), password: str = Query(...)):
+    verify_auth(email, password)
+    cfg = _profile_cfg(kind)
+    res = await db[cfg["collection"]].delete_one({"profile_id": profile_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"success": True}
+
+
 # ==================== APP SETUP ====================
 
 app.include_router(api_router)

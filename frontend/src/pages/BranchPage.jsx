@@ -1,6 +1,6 @@
 import React from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowRight, Phone, Mail, MapPin, Clock, ChevronRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Phone, Mail, MapPin, Clock, ChevronRight, CheckCircle2, Navigation } from "lucide-react";
 
 import PageShell from "../components/site/PageShell";
 import Seo from "../components/site/Seo";
@@ -85,7 +85,7 @@ export default function BranchPage() {
               <p className="mt-6 text-lg sm:text-xl text-slate-600 max-w-2xl leading-relaxed">{branch.sub}</p>
 
               <div className="mt-9 grid sm:grid-cols-2 gap-3">
-                <a href={`tel:${PHONE_DIAL}`} className="inline-flex items-center gap-3 px-5 py-4 rounded-2xl bg-slate-900 text-white font-semibold hover:bg-slate-800 transition-colors">
+                <a href={`tel:${branch.phone.replace(/\s/g, "")}`} className="inline-flex items-center gap-3 px-5 py-4 rounded-2xl bg-slate-900 text-white font-semibold hover:bg-slate-800 transition-colors" data-testid="branch-phone">
                   <Phone size={17} /> {branch.phone}
                 </a>
                 <a href={`mailto:${branch.email}`} className="inline-flex items-center gap-3 px-5 py-4 rounded-2xl bg-white border-2 border-slate-200 text-slate-800 font-semibold hover:border-blue-400 hover:text-blue-700 transition-colors">
@@ -96,7 +96,12 @@ export default function BranchPage() {
               <div className="mt-10 grid sm:grid-cols-2 gap-6">
                 <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100">
                   <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 flex items-center gap-2 mb-3"><MapPin size={13} /> Address</p>
-                  <p className="text-slate-800 text-[15px] leading-relaxed">{branch.address}</p>
+                  <p className="text-slate-800 text-[15px] leading-relaxed" data-testid="branch-address">{branch.address}</p>
+                  {branch.directions && (
+                    <a href={branch.directions} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-700 text-white text-sm font-semibold hover:bg-blue-800" data-testid="branch-directions-btn">
+                      <Navigation size={14} /> Get directions
+                    </a>
+                  )}
                 </div>
                 <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100">
                   <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 flex items-center gap-2 mb-3"><Clock size={13} /> Hours</p>
@@ -139,25 +144,6 @@ export default function BranchPage() {
                 <p className="text-slate-800 font-medium text-[15px]">{s}</p>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Map */}
-      <section className="py-16 lg:py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <SectionHeader eyebrow="Visit us" title={`Find the ${branch.city} office`} />
-          <div className="mt-8 rounded-3xl overflow-hidden border border-slate-100 shadow-lg" style={{ height: 420 }}>
-            <iframe
-              title={`Map of VisaXpert ${branch.city}`}
-              src={branch.mapEmbed}
-              width="100%"
-              height="100%"
-              style={{ border: 0 }}
-              loading="lazy"
-              allowFullScreen
-              referrerPolicy="no-referrer-when-downgrade"
-            />
           </div>
         </div>
       </section>

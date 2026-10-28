@@ -19,6 +19,9 @@ import BranchesIndexPage from "./pages/BranchesIndexPage";
 import BranchPage from "./pages/BranchPage";
 import ContactPage from "./pages/ContactPage";
 import FaqPage from "./pages/FaqPage";
+import AboutPage from "./pages/AboutPage";
+import StudentStoriesPage from "./pages/StudentStoriesPage";
+import { EnquiryProvider } from "./components/site/EnquiryModal";
 
 import { Toaster } from "./components/ui/sonner";
 
@@ -28,6 +31,7 @@ function App() {
       <div className="App">
         <Toaster position="top-center" richColors />
         <BrowserRouter>
+          <EnquiryProvider>
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/study-abroad" element={<LandingPage />} />
@@ -49,7 +53,11 @@ function App() {
             <Route path="/branches/:slug" element={<BranchPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/faq" element={<FaqPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/student-stories" element={<StudentStoriesPage />} />
+            <Route path="/student-stories/:id" element={<StudentStoriesPage />} />
           </Routes>
+          </EnquiryProvider>
         </BrowserRouter>
       </div>
     </HelmetProvider>
