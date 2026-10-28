@@ -41,9 +41,9 @@ WHATSAPP_TEMPLATE_NAME = os.environ.get('WHATSAPP_TEMPLATE_NAME', 'crmall')
 # WHATSAPP_PROVIDER controls which upstream WhatsApp API is hit:
 #   - "aisensy" -> AiSensy V2 Campaign API
 #   - "bsp"     -> legacy nirvachanguru Cloud-API proxy
-AISENSY_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ODVlOGM0YWFlYWUyMGQ4MmM1MGRkNyIsIm5hbWUiOiJWaXNheHBlcnQgLSBUaGUgU3R1ZHkgQWJyb2FkIFNwZWNpYWwiLCJhcHBOYW1lIjoiQWlTZW5zeSIsImNsaWVudElkIjoiNjZmMjc3NjZmMTk3NTgwYjc1NTRhNjk2IiwiYWN0aXZlUGxhbiI6IkZSRUVfRk9SRVZFUiIsImlhdCI6MTc3MDM4MzU1Nn0.Tt3cSWLDugE0KY-OqAliiaDNqWAQzXB97QCiKLVxVmg"
+AISENSY_API_KEY = os.environ.get("AISENSY_API_KEY") or "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ODVlOGM0YWFlYWUyMGQ4MmM1MGRkNyIsIm5hbWUiOiJWaXNheHBlcnQgLSBUaGUgU3R1ZHkgQWJyb2FkIFNwZWNpYWwiLCJhcHBOYW1lIjoiQWlTZW5zeSIsImNsaWVudElkIjoiNjZmMjc3NjZmMTk3NTgwYjc1NTRhNjk2IiwiYWN0aXZlUGxhbiI6IkZSRUVfRk9SRVZFUiIsImlhdCI6MTc3MDM4MzU1Nn0.Tt3cSWLDugE0KY-OqAliiaDNqWAQzXB97QCiKLVxVmg"
 # Dedicated AiSensy key for the Berlin (university change) page.
-AISENSY_API_KEY_UC = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZjIxZjMzNmM4ZGM0NjVmZjQ5YmUzZSIsIm5hbWUiOiJWaXNhWHBlcnQgLSBCZXJsaW4iLCJhcHBOYW1lIjoiQWlTZW5zeSIsImNsaWVudElkIjoiNjZmMjc3NjZmMTk3NTgwYjc1NTRhNjk2IiwiYWN0aXZlUGxhbiI6IkZSRUVfRk9SRVZFUiIsImlhdCI6MTc3NzQ3NTM3OX0.5bdo1_T7GM6gFKLoyf9GgCKV0qQ-I03x2uW2FQ5bijQ"
+AISENSY_API_KEY_UC = os.environ.get("AISENSY_API_KEY_UC") or "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZjIxZjMzNmM4ZGM0NjVmZjQ5YmUzZSIsIm5hbWUiOiJWaXNhWHBlcnQgLSBCZXJsaW4iLCJhcHBOYW1lIjoiQWlTZW5zeSIsImNsaWVudElkIjoiNjZmMjc3NjZmMTk3NTgwYjc1NTRhNjk2IiwiYWN0aXZlUGxhbiI6IkZSRUVfRk9SRVZFUiIsImlhdCI6MTc3NzQ3NTM3OX0.5bdo1_T7GM6gFKLoyf9GgCKV0qQ-I03x2uW2FQ5bijQ"
 AISENSY_API_URL = "https://backend.aisensy.com/campaign/t1/api/v2"
 WHATSAPP_PROVIDER = "aisensy"
 
@@ -1128,53 +1128,11 @@ async def _get_uc_wa_template_for_scenario(scenario: str) -> str:
 
 async def send_university_change_whatsapp(phone: str, name: str,
                                           consultation_mode: str, lead_id: str):
-    """Send the consultation-mode-specific University Change WhatsApp template.
-
-    Uses the VisaXpert-Berlin AiSensy sub-account (AISENSY_API_KEY_UC) so it
-    is isolated from the global AiSensy account. The dynamic Jitsi meeting
-    link is delivered via the template's URL CTA button (a `{{1}}` suffix on
-    `https://meet.jit.si/`).
-    """
+    """Send the Berlin vx_counselling_final template (name only) via the Berlin AiSensy account."""
     if not phone:
         return False
-    if not AISENSY_API_KEY_UC:
-        logger.warning("AISENSY_API_KEY_UC missing, skipping University Change WhatsApp")
-        return False
-
-    scenario = _pick_uc_wa_scenario(consultation_mode)
-    template_name = await _get_uc_wa_template_for_scenario(scenario)
-    if not template_name:
-        logger.warning(
-            f"University Change WhatsApp scenario={scenario} has no template "
-            f"configured (set it in the dashboard); skipping send to {phone}"
-        )
-        return False
-
-    # Only the online template has a dynamic URL button suffix
-    button_url_param = (
-        f"VisaxpertBerlin-{lead_id}" if scenario == UC_WA_SCENARIO_ONLINE else None
-    )
-
-    result = await _send_whatsapp_api(
-        to_phone=phone,
-        template_name=template_name,
-        language_code="en",
-        body_params=[name or ""],
-        header_param=None,
-        recipient_name=name or "",
-        api_key_override=AISENSY_API_KEY_UC,
-        button_url_param=button_url_param,
-    )
-    if result.get("ok"):
-        logger.info(
-            f"UC WhatsApp '{template_name}' (scenario={scenario}) sent to {phone}"
-        )
-        return True
-    logger.error(
-        f"UC WhatsApp '{template_name}' (scenario={scenario}) failed to {phone}: "
-        f"{result.get('error', '')[:200]}"
-    )
-    return False
+    await send_routed_whatsapp("berlin", phone, name, doc_id=lead_id)
+    return True
 
 
 # IVR-specific WhatsApp campaign names (no template params)
@@ -5380,6 +5338,7 @@ DEFAULT_WA_ROUTES = {
     "ludhiana": "visaxpert_interested_ludhiana",
     "amritsar": "visaxpert_interested_amritsar",
     "online": "visaxpert_online_counselling",
+    "berlin": "vx_counselling_final",
 }
 BRANCH_ROUTE_KEYS = ("jammu", "pathankot", "ludhiana", "amritsar", "online")
 WEBSITE_WA_EXCLUDED_SOURCES = {
@@ -5415,10 +5374,12 @@ async def send_routed_whatsapp(route_key: Optional[str], phone: str, name: str =
     elif not template:
         result = {"ok": False, "error": "No template for this branch"}
     else:
-        params = [name or "there"] if routes["send_name_param"] else []
+        is_berlin = route_key == "berlin"
+        params = [name or "there"] if (routes["send_name_param"] or is_berlin) else []
         result = await _send_whatsapp_api(
             to_phone=phone, template_name=template, language_code="en",
             body_params=params, header_param=None, recipient_name=name or "",
+            api_key_override=AISENSY_API_KEY_UC if is_berlin else None,
         )
     status = "sent" if result.get("ok") else "failed"
     if doc_id:
@@ -5445,10 +5406,19 @@ async def send_ivr_routed_whatsapp(phone: str, lead_id: str):
 
 
 def _require_india_access(email: str, password: str) -> dict:
-    user = verify_auth(email, password)
-    if user["access"] == "university_change":
-        raise HTTPException(status_code=403, detail="Not allowed")
-    return user
+    return verify_auth(email, password)
+
+
+def _account_of(user: dict) -> str:
+    return "berlin" if user["access"] == "university_change" else "india"
+
+
+def _sheet_type(account: str) -> str:
+    return "campaign_sheet_berlin" if account == "berlin" else "campaign_sheet"
+
+
+def _account_query(account: str) -> dict:
+    return {"account": "berlin"} if account == "berlin" else {"account": {"$ne": "berlin"}}
 
 
 class WaRoutesIn(BaseModel):
@@ -5512,23 +5482,24 @@ def _campaign_settings_out(doc: Optional[dict]) -> dict:
 
 @api_router.get("/dashboard/campaign-sheet/settings")
 async def get_campaign_sheet_settings(email: str = Query(...), password: str = Query(...)):
-    _require_india_access(email, password)
-    return _campaign_settings_out(await db.settings.find_one({"type": "campaign_sheet"}))
+    user = _require_india_access(email, password)
+    return _campaign_settings_out(await db.settings.find_one({"type": _sheet_type(_account_of(user))}))
 
 
 @api_router.post("/dashboard/campaign-sheet/settings")
 async def save_campaign_sheet_settings(payload: CampaignSheetSettingsIn,
                                        email: str = Query(...), password: str = Query(...)):
-    _require_india_access(email, password)
+    user = _require_india_access(email, password)
+    sheet_type = _sheet_type(_account_of(user))
     if len(payload.columns) != CAMPAIGN_COLUMN_COUNT:
         raise HTTPException(status_code=422, detail=f"Exactly {CAMPAIGN_COLUMN_COUNT} columns are required")
     for idx in (payload.phone_col, payload.name_col, payload.branch_col):
         if not 0 <= idx < CAMPAIGN_COLUMN_COUNT:
             raise HTTPException(status_code=422, detail="Invalid column index")
     await db.settings.update_one(
-        {"type": "campaign_sheet"},
+        {"type": sheet_type},
         {"$set": {
-            "type": "campaign_sheet",
+            "type": sheet_type,
             "sheet_url": payload.sheet_url.strip(),
             "columns": [c.model_dump() for c in payload.columns],
             "phone_col": payload.phone_col,
@@ -5539,7 +5510,7 @@ async def save_campaign_sheet_settings(payload: CampaignSheetSettingsIn,
         }},
         upsert=True,
     )
-    return _campaign_settings_out(await db.settings.find_one({"type": "campaign_sheet"}))
+    return _campaign_settings_out(await db.settings.find_one({"type": sheet_type}))
 
 
 def _clean_phone(raw: str) -> str:
@@ -5551,8 +5522,9 @@ def _clean_phone(raw: str) -> str:
     return phone
 
 
-async def _do_campaign_sheet_sync(send_to_existing: bool = False) -> dict:
-    settings = await db.settings.find_one({"type": "campaign_sheet"})
+async def _do_campaign_sheet_sync(send_to_existing: bool = False, account: str = "india") -> dict:
+    sheet_type = _sheet_type(account)
+    settings = await db.settings.find_one({"type": sheet_type})
     if not settings or not settings.get("sheet_url"):
         raise HTTPException(status_code=400, detail="Connect a Google Sheet first")
     first_sync = not settings.get("last_sync")
@@ -5576,15 +5548,16 @@ async def _do_campaign_sheet_sync(send_to_existing: bool = False) -> dict:
             continue
         phone = _clean_phone(values[settings.get("phone_col", 2)])
         dedupe_key = phone or hashlib.sha256("|".join(values).encode()).hexdigest()
-        if await db.campaign_leads.find_one({"dedupe_key": dedupe_key}):
+        if await db.campaign_leads.find_one({"dedupe_key": dedupe_key, **_account_query(account)}):
             skipped += 1
             continue
         name = values[settings.get("name_col", 1)]
         branch = values[settings.get("branch_col", 5)]
-        route_key = _branch_route_key(branch)
+        route_key = "berlin" if account == "berlin" else _branch_route_key(branch)
         doc_id = str(uuid.uuid4())
         await db.campaign_leads.insert_one({
             "campaign_lead_id": doc_id,
+            "account": account,
             "values": values,
             "phone": phone,
             "name": name,
@@ -5608,29 +5581,30 @@ async def _do_campaign_sheet_sync(send_to_existing: bool = False) -> dict:
 
     msg = f"Imported {imported}, skipped {skipped}, WhatsApp queued {queued}"
     await db.settings.update_one(
-        {"type": "campaign_sheet"},
+        {"type": sheet_type},
         {"$set": {"last_sync": datetime.now(timezone.utc).isoformat(), "last_sync_result": msg}},
     )
-    logger.info(f"Campaign sheet sync: {msg}")
+    logger.info(f"Campaign sheet sync [{account}]: {msg}")
     return {"success": True, "imported": imported, "skipped": skipped, "whatsapp_queued": queued, "message": msg}
 
 
 @api_router.post("/dashboard/campaign-sheet/sync")
 async def sync_campaign_sheet(payload: CampaignSyncIn, email: str = Query(...), password: str = Query(...)):
-    _require_india_access(email, password)
-    return await _do_campaign_sheet_sync(payload.send_to_existing)
+    user = _require_india_access(email, password)
+    return await _do_campaign_sheet_sync(payload.send_to_existing, _account_of(user))
 
 
 async def _maybe_run_campaign_sheet_sync():
     if db is None:
         return
-    s = await db.settings.find_one({"type": "campaign_sheet"})
-    if not s or not s.get("auto_sync_enabled") or not s.get("sheet_url") or not s.get("last_sync"):
-        return
-    last = datetime.fromisoformat(s["last_sync"])
-    if (datetime.now(timezone.utc) - last).total_seconds() < int(s.get("sync_interval_minutes", 15)) * 60:
-        return
-    await _do_campaign_sheet_sync()
+    for account in ("india", "berlin"):
+        s = await db.settings.find_one({"type": _sheet_type(account)})
+        if not s or not s.get("auto_sync_enabled") or not s.get("sheet_url") or not s.get("last_sync"):
+            continue
+        last = datetime.fromisoformat(s["last_sync"])
+        if (datetime.now(timezone.utc) - last).total_seconds() < int(s.get("sync_interval_minutes", 15)) * 60:
+            continue
+        await _do_campaign_sheet_sync(account=account)
 
 
 @api_router.get("/dashboard/campaign-leads")
@@ -5639,8 +5613,9 @@ async def list_campaign_leads(
     page: int = Query(1, ge=1), per_page: int = Query(20, ge=1, le=200),
     search: str = Query(""), branch: str = Query(""),
 ):
-    _require_india_access(email, password)
-    query: dict = {}
+    user = _require_india_access(email, password)
+    account = _account_of(user)
+    query: dict = _account_query(account)
     if search:
         rx = {"$regex": re.escape(search), "$options": "i"}
         query["$or"] = [{"values": rx}, {"phone": rx}]
@@ -5653,8 +5628,9 @@ async def list_campaign_leads(
     async for d in cursor:
         d["created_at"] = d["created_at"].isoformat() if isinstance(d.get("created_at"), datetime) else d.get("created_at")
         items.append(d)
-    settings = _campaign_settings_out(await db.settings.find_one({"type": "campaign_sheet"}))
+    settings = _campaign_settings_out(await db.settings.find_one({"type": _sheet_type(account)}))
     return {
+        "account": account,
         "headings": [c.get("heading") or f"Column {i + 1}" for i, c in enumerate(settings["columns"])],
         "items": items,
         "total": total,
@@ -5665,12 +5641,14 @@ async def list_campaign_leads(
 
 @api_router.post("/dashboard/campaign-leads/{lead_id}/resend")
 async def resend_campaign_whatsapp(lead_id: str, email: str = Query(...), password: str = Query(...)):
-    _require_india_access(email, password)
-    doc = await db.campaign_leads.find_one({"campaign_lead_id": lead_id})
+    user = _require_india_access(email, password)
+    account = _account_of(user)
+    doc = await db.campaign_leads.find_one({"campaign_lead_id": lead_id, **_account_query(account)})
     if not doc:
         raise HTTPException(status_code=404, detail="Lead not found")
     result = await send_routed_whatsapp(
-        _branch_route_key(doc.get("branch", "")), doc.get("phone", ""), doc.get("name", ""),
+        "berlin" if account == "berlin" else _branch_route_key(doc.get("branch", "")),
+        doc.get("phone", ""), doc.get("name", ""),
         collection="campaign_leads", id_field="campaign_lead_id", doc_id=lead_id,
     )
     return {"success": bool(result.get("ok")), "error": result.get("error", "")}
@@ -5678,8 +5656,8 @@ async def resend_campaign_whatsapp(lead_id: str, email: str = Query(...), passwo
 
 @api_router.delete("/dashboard/campaign-leads/{lead_id}")
 async def delete_campaign_lead(lead_id: str, email: str = Query(...), password: str = Query(...)):
-    _require_india_access(email, password)
-    res = await db.campaign_leads.delete_one({"campaign_lead_id": lead_id})
+    user = _require_india_access(email, password)
+    res = await db.campaign_leads.delete_one({"campaign_lead_id": lead_id, **_account_query(_account_of(user))})
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Lead not found")
     return {"success": True}

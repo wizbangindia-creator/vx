@@ -119,9 +119,11 @@ export default function CampaignLeadsManager({ credentials }) {
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search any column…" className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" data-testid="campaign-search-input" />
         </div>
-        <select value={branch} onChange={(e) => { setBranch(e.target.value); setPage(1); }} className="px-3 py-2.5 border border-slate-200 rounded-lg" data-testid="campaign-branch-filter">
-          {BRANCHES.map((b) => <option key={b.key} value={b.key}>{b.label}</option>)}
-        </select>
+        {data.account !== "berlin" && (
+          <select value={branch} onChange={(e) => { setBranch(e.target.value); setPage(1); }} className="px-3 py-2.5 border border-slate-200 rounded-lg" data-testid="campaign-branch-filter">
+            {BRANCHES.map((b) => <option key={b.key} value={b.key}>{b.label}</option>)}
+          </select>
+        )}
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
@@ -163,7 +165,7 @@ export default function CampaignLeadsManager({ credentials }) {
         <CampaignSheetSettings credentials={credentials} settings={settings} onClose={() => setShowSettings(false)}
           onSaved={async (firstConnect, sendExisting) => { setShowSettings(false); await loadSettings(); load(); if (firstConnect) syncNow(sendExisting); }} />
       )}
-      {showRoutes && <WaRoutesModal credentials={credentials} onClose={() => setShowRoutes(false)} />}
+      {showRoutes && <WaRoutesModal credentials={credentials} berlin={data.account === "berlin"} onClose={() => setShowRoutes(false)} />}
     </div>
   );
 }
@@ -290,9 +292,11 @@ const ROUTE_LABELS = [
   ["amritsar", "Sheet · Amritsar"],
   ["online", "Sheet · Online"],
 ];
+const BERLIN_ROUTES = [["berlin", "Berlin page & Berlin sheet"]];
 
-function WaRoutesModal({ credentials, onClose }) {
+function WaRoutesModal({ credentials, berlin, onClose }) {
   const [cfg, setCfg] = useState(null);
+  const routes = berlin ? BERLIN_ROUTES : ROUTE_LABELS;
 
   useEffect(() => {
     axios.get(`${API}/dashboard/wa-routes?${auth(credentials)}`).then((r) => setCfg(r.data)).catch((e) => toast.error(errMsg(e)));
@@ -311,17 +315,19 @@ function WaRoutesModal({ credentials, onClose }) {
       {!cfg ? <p className="text-sm text-slate-500">Loading…</p> : (
         <>
           <div className="space-y-2 mb-5">
-            {ROUTE_LABELS.map(([key, label]) => (
+            {routes.map(([key, label]) => (
               <div key={key} className="grid grid-cols-[180px_1fr] gap-3 items-center">
                 <span className="text-sm text-slate-600">{label}</span>
                 <input value={cfg.templates[key] || ""} onChange={(e) => setCfg({ ...cfg, templates: { ...cfg.templates, [key]: e.target.value } })} className="px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono" data-testid={`wa-route-${key}`} />
               </div>
             ))}
           </div>
-          <label className="flex items-center gap-2 text-sm mb-6">
-            <input type="checkbox" checked={cfg.send_name_param} onChange={(e) => setCfg({ ...cfg, send_name_param: e.target.checked })} data-testid="wa-send-name-toggle" />
-            Templates use the student's name as variable {"{{1}}"}
-          </label>
+          {!berlin && (
+            <label className="flex items-center gap-2 text-sm mb-6">
+              <input type="checkbox" checked={cfg.send_name_param} onChange={(e) => setCfg({ ...cfg, send_name_param: e.target.checked })} data-testid="wa-send-name-toggle" />
+              Templates use the student's name as variable {"{{1}}"}
+            </label>
+          )}
           <div className="flex justify-end gap-2">
             <button onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-200 text-sm">Cancel</button>
             <button onClick={save} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm" data-testid="wa-routes-save-btn">Save</button>

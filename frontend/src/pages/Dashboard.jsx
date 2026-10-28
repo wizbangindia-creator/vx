@@ -504,9 +504,7 @@ export default function Dashboard() {
             <p className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Workspace</p>
             <div className="space-y-0.5">
               <NavItem icon={LayoutDashboard} label="Leads" active={activeTab === 'leads'} onClick={() => { setActiveTab('leads'); setSidebarOpen(false); }} testId="nav-leads" badge={totalLeads} />
-              {userInfo?.access !== 'university_change' && (
-                <NavItem icon={FileSpreadsheet} label="Campaign Leads" active={activeTab === 'campaign_leads'} onClick={() => { setActiveTab('campaign_leads'); setSidebarOpen(false); }} testId="nav-campaign-leads" />
-              )}
+              <NavItem icon={FileSpreadsheet} label="Campaign Leads" active={activeTab === 'campaign_leads'} onClick={() => { setActiveTab('campaign_leads'); setSidebarOpen(false); }} testId="nav-campaign-leads" />
               <NavItem icon={Star} label="Reviews" active={activeTab === 'reviews'} onClick={() => { setActiveTab('reviews'); setSidebarOpen(false); }} testId="reviews-tab-btn" />
               <NavItem icon={MessageCircle} label="WhatsApp" active={activeTab === 'whatsapp'} onClick={() => { setActiveTab('whatsapp'); setSidebarOpen(false); }} testId="whatsapp-tab-btn" />
               <NavItem icon={Calendar} label="Bookings" active={activeTab === 'bookings'} onClick={() => { setActiveTab('bookings'); setSidebarOpen(false); }} testId="bookings-tab-btn" />

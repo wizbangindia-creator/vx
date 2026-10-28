@@ -45,6 +45,15 @@ async def main():
     assert r2["imported"] == 0
     nob = await server.db.campaign_leads.find_one({"phone": "9800044444"})
     assert nob["whatsapp"]["status"] == "failed", nob
+    sent.clear()
+    await server.db.settings.insert_one({"type": "campaign_sheet_berlin", "sheet_url": "x", "phone_col": 2, "name_col": 1, "branch_col": 5,
+                                         "columns": [{"heading": c, "sheet_column": c} for c in cols]})
+    r3 = await server._do_campaign_sheet_sync(send_to_existing=True, account="berlin")
+    await asyncio.sleep(0.5)
+    print("berlin", r3, sent)
+    assert r3["imported"] == 4 and len(sent) == 4
+    assert all(t == "vx_counselling_final" for _, t, _ in sent)
+    assert await server.db.campaign_leads.count_documents({"account": "berlin"}) == 4
     await server.db.client.drop_database("campaign_test_tmp")
     print("OK")
 
