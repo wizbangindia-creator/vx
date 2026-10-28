@@ -24,6 +24,12 @@ Study-abroad consultancy site: marketing pages, lead capture, WhatsApp (AiSensy)
     Meta/Google ad webhooks keep the legacy template; GF/IELTS/UC/webinar flows unchanged.
   - Old Leads-tab sheet sync controls now only visible to admin@visaxpert.com.
 
+## Iteration 3 (Jun 2026)
+- Booking popup (name, phone, country 9 + Other w/ text) from hero, navbar, Others country card (home + /countries); 30-min call copy; removed No-cost badge + home branches section; navbar "Our Branches".
+- Branch data: real addresses/phones/opening times + Google directions links; maps removed (branch + contact).
+- /about page (approach pillars, founders Sunil Arora & Rajesh Joshi, ICEF, team from admin); home approach strip.
+- Admin Team + Student Testimonials tabs (photo upload); home sliding testimonials + /student-stories/:id pages.
+
 ## Backlog
 - P1: Move hardcoded AiSensy keys to env/secrets.
 - P1: Dashboard Website stat counts only source=website (homepage source not counted) — pre-existing.
