@@ -192,15 +192,18 @@ function CampaignSheetSettings({ credentials, settings, onClose, onSaved }) {
   const [busy, setBusy] = useState(false);
 
   const loadHeaders = useCallback(async (sheetUrl) => {
-    if (!sheetUrl) return;
+    if (!sheetUrl) return false;
     setBusy(true);
+    let ok = false;
     try {
       const res = await axios.post(`${API}/dashboard/sheets/preview?${auth(credentials)}&sheet_url=${encodeURIComponent(sheetUrl)}&sample_size=3`);
       setHeaders(res.data.headers);
       setColumns((cols) => cols.map((c) => c.sheet_column ? c : { ...c, sheet_column: res.data.headers.find((h) => h.toLowerCase().includes(c.heading.toLowerCase().split(" ").pop())) || "" }));
       toast.success(`Found ${res.data.headers.length} columns, ${res.data.total_rows} rows`);
+      ok = true;
     } catch (e) { toast.error(errMsg(e)); }
     setBusy(false);
+    return ok;
   }, [credentials]);
 
   useEffect(() => { if (settings.sheet_url) loadHeaders(settings.sheet_url); }, [settings.sheet_url, loadHeaders]);
@@ -208,6 +211,8 @@ function CampaignSheetSettings({ credentials, settings, onClose, onSaved }) {
   const setCol = (i, key, val) => setColumns(columns.map((c, j) => (j === i ? { ...c, [key]: val } : c)));
 
   const save = async () => {
+    if (headers.length === 0 && !(await loadHeaders(url))) return;
+    if (!columns.some((c) => c.sheet_column)) { toast.error("Map at least one sheet column"); return; }
     setBusy(true);
     try {
       await axios.post(`${API}/dashboard/campaign-sheet/settings?${auth(credentials)}`, {

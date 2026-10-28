@@ -1,47 +1,31 @@
-# VisaXpert — Product Requirements & Status
+# VisaXpert — PRD
 
 ## Origin
-Cloned from GitHub repo `wizbangindia-creator/vx` and made runnable in the Emergent environment (June 2026).
+Cloned from GitHub `wizbangindia-creator/vx`, running in Emergent (FastAPI + React + MongoDB).
 
 ## Overview
-VisaXpert is a study-abroad consultancy marketing/lead-gen web app.
-- **Stack:** FastAPI (backend) + React 19 / CRACO / Tailwind + shadcn UI (frontend) + MongoDB.
-- **Purpose:** Landing pages, country/branch info, lead capture, WhatsApp/email automation, University-Change (Berlin) booking, and an admin dashboard for leads.
+Study-abroad consultancy site: marketing pages, lead capture, WhatsApp (AiSensy) + email automation, Berlin university-change booking, admin dashboard.
 
-## Architecture
-- Backend: `/app/backend/server.py` (single large FastAPI app, all routes prefixed `/api`).
-- Frontend: `/app/frontend/src` — pages under `pages/`, site components under `components/site/`.
-- Data seeded via `backend/seed_*.py` scripts (landing templates, Germany-fair templates, university-change logos).
+## Users
+- sunilarora@visaxpert.co — Indian enquiries admin (main_landing)
+- navyaarora@visaxpert.co — University change (Berlin)
+- admin@visaxpert.com — all access
 
-## Key Routes (frontend)
-`/` home, `/study-abroad`, `/dashboard`, `/berlin` (university change), `/germany-fair`,
-`/ielts-celebration`, `/countries`, `/countries/:slug`, `/branches`, `/branches/:slug`,
-`/contact`, `/faq`, plus privacy/terms/impressum pages.
+## Implemented
+- Jun 2026: Clone + run, seeds loaded.
+- Jun 2026 (iteration 2):
+  - Countries: Singapore removed; Netherlands + Sweden added (9 countries total, sitemap updated).
+  - Footer: LinkedIn/YouTube removed, "Founded by Sunil Arora" removed, landing-page links removed (Help column: FAQ/Contact/Privacy/Terms).
+  - All public emails -> info@visaxpertinternational.co.in; IELTS/PTE coaching mentions removed from main site (homepage service+FAQ, FAQ page category, branch services).
+  - Dashboard "Campaign Leads" tab (non-UC users): connect public Google Sheet (tab gid supported), 8 columns with custom headings + sheet-column mapping, name/phone/branch role columns, manual/auto sync, first-connect option to skip messaging existing rows, dedupe by phone, resend/delete, branch filter, WhatsApp status per row.
+  - Instant AiSensy WhatsApp routing (editable in "WhatsApp templates" modal, default {{1}} = name):
+    IVR -> visaxpert_ivr (max once per number / 24h); website forms (/enquiry, homepage, contact, country/branch forms) -> visaxpert_website;
+    sheet branch Jammu/Pathankot/Ludhiana/Amritsar/Online -> visaxpert_interested_<branch> / visaxpert_online_counselling.
+    Meta/Google ad webhooks keep the legacy template; GF/IELTS/UC/webinar flows unchanged.
+  - Old Leads-tab sheet sync controls now only visible to admin@visaxpert.com.
 
-## Key APIs
-- `POST /api/webhook/lead` — lead capture (used by LeadForm). Verified working.
-- `GET /api/` — health check. Verified.
-- Dashboard lead APIs, UC-booking APIs, Facebook/WhatsApp webhooks.
-
-## Integrations (optional — degrade gracefully when keys absent)
-- Resend (email), AiSensy / WhatsApp Cloud API, Google Sheets sync, Stripe, Facebook lead webhook.
-- All read from env with sane fallbacks; missing keys just skip that channel.
-
-## Status (as of clone/run — June 2026)
-- ✅ Repo cloned into `/app`, deps installed (pip + yarn).
-- ✅ Backend running, connected to MongoDB, health check 200.
-- ✅ Frontend running, homepage + lead form verified end-to-end.
-- ✅ Seed scripts run (landing templates, Germany-fair templates, university-change logos).
-- Env `.env` files preserved from Emergent environment (MONGO_URL, DB_NAME=test_database, REACT_APP_BACKEND_URL).
-
-## Backlog / Next
-
-### Media Design University Webinar landing page (added June 2026)
-- Route: `/webinar/media-design` (alias `/media-design-webinar`) → `pages/MediaDesignWebinarPage.jsx`.
-- Purpose: register students who want to change/shift their university to Germany (from any EU country) for a live webinar with Media Design University of Applied Sciences experts — covers programs, scholarships, discounts, complete visa process, plus a post-webinar 1-on-1 meeting.
-- Registration form captures: name, email, phone, present country, native country, highest qualification.
-- Posts to `POST /api/webhook/lead` with `source: "media_design_webinar"`; custom fields land flat in `extra_data`. Backend excludes this source from the legacy WhatsApp auto-send. Verified end-to-end (lead saved + fields persisted).
-- Dark editorial theme (Fraunces + Manrope, amber/blue accents), standalone (own nav/footer).
-
-- Optional: provide real integration keys (Resend, WhatsApp/AiSensy, Google Sheets) to enable notifications.
-- Optional: full QA pass across all pages and the admin dashboard.
+## Backlog
+- P1: Move hardcoded AiSensy keys to env/secrets.
+- P1: Dashboard Website stat counts only source=website (homepage source not counted) — pre-existing.
+- P2: Campaign leads status column (new/contacted), CSV export.
+- P2: IELTS Celebration landing page still mentions mock tests (intentionally untouched).

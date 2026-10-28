@@ -1455,6 +1455,9 @@ async def receive_webhook_lead(lead: WebhookLead):
         asyncio.create_task(send_university_change_whatsapp(
             phone, name, uc_wa_mode, lead_id
         ))
+    # Meta / Google ad webhooks keep the legacy one-shot template
+    elif source in ("meta", "google", "webhook") and phone:
+        asyncio.create_task(send_whatsapp_template_message(phone, name))
     # Website quick-query forms: instant visaxpert_website template
     elif source not in WEBSITE_WA_EXCLUDED_SOURCES and phone:
         asyncio.create_task(send_routed_whatsapp("website", phone, name, doc_id=lead_id))
@@ -1724,7 +1727,7 @@ async def receive_ivr_webhook_get(request: Request):
             raise HTTPException(status_code=500, detail="Failed to save lead")
         
         if phone:
-            asyncio.create_task(send_routed_whatsapp("ivr", phone, "", doc_id=lead_id))
+            asyncio.create_task(send_ivr_routed_whatsapp(phone, lead_id))
         
         # Send to Google Sheets
         sheets_data = {
@@ -1836,7 +1839,7 @@ async def receive_ivr_webhook_post(request: Request):
             raise HTTPException(status_code=500, detail="Failed to save lead")
         
         if phone:
-            asyncio.create_task(send_routed_whatsapp("ivr", phone, "", doc_id=lead_id))
+            asyncio.create_task(send_ivr_routed_whatsapp(phone, lead_id))
         
         # Send to Google Sheets
         sheets_data = {
@@ -2152,6 +2155,8 @@ async def fetch_google_sheet_csv(sheet_url: str) -> str:
                 raise HTTPException(status_code=400, detail=f"Failed to fetch sheet: {response.status_code}")
     except httpx.TimeoutException:
         raise HTTPException(status_code=408, detail="Timeout fetching Google Sheet")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching sheet: {str(e)}")
 
@@ -5425,6 +5430,18 @@ async def send_routed_whatsapp(route_key: Optional[str], phone: str, name: str =
     log = logger.info if result.get("ok") else logger.error
     log(f"Routed WhatsApp [{route_key}] '{template}' to {phone}: {status} {result.get('error', '')[:200]}")
     return result
+
+
+async def send_ivr_routed_whatsapp(phone: str, lead_id: str):
+    since = datetime.now(timezone.utc) - timedelta(hours=24)
+    recent = await db.leads.find_one({
+        "source": "ivr_missed_call", "phone": phone, "lead_id": {"$ne": lead_id},
+        "whatsapp.status": "sent", "created_at": {"$gte": since},
+    })
+    if recent:
+        logger.info(f"IVR WhatsApp skipped for {phone}: already sent in last 24h")
+        return
+    await send_routed_whatsapp("ivr", phone, "", doc_id=lead_id)
 
 
 def _require_india_access(email: str, password: str) -> dict:
