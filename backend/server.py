@@ -5338,9 +5338,14 @@ DEFAULT_WA_ROUTES = {
     "ludhiana": "visaxpert_interested_ludhiana",
     "amritsar": "visaxpert_interested_amritsar",
     "online": "visaxpert_online_counselling",
+    "online_jammu": "online_jammu",
+    "online_pathankot": "online_pathankot",
+    "online_amritsar": "online_amritsar",
+    "online_ludhiana": "online_ludhiana",
     "berlin": "vx_counselling_final",
 }
 BRANCH_ROUTE_KEYS = ("jammu", "pathankot", "ludhiana", "amritsar", "online")
+ONLINE_BRANCH_KEYS = ("jammu", "pathankot", "ludhiana", "amritsar")
 WEBSITE_WA_EXCLUDED_SOURCES = {
     "university_change", "germany_fair", "ielts_celebration", "media_design_webinar", "ivr_missed_call",
 }
@@ -5356,8 +5361,14 @@ async def _get_wa_routes() -> dict:
     }
 
 
-def _branch_route_key(branch: str) -> Optional[str]:
+def _branch_route_key(branch: str, online_branch: str = "") -> Optional[str]:
     b = (branch or "").strip().lower()
+    if "online" in b:
+        combined = f"{b} {(online_branch or '').strip().lower()}"
+        for key in ONLINE_BRANCH_KEYS:
+            if key in combined:
+                return f"online_{key}"
+        return "online"
     for key in BRANCH_ROUTE_KEYS:
         if key in b:
             return key
@@ -5455,6 +5466,7 @@ class CampaignSheetSettingsIn(BaseModel):
     phone_col: int = 2
     name_col: int = 1
     branch_col: int = 5
+    online_branch_col: int = -1
     auto_sync_enabled: bool = False
     sync_interval_minutes: int = 15
 
@@ -5472,6 +5484,7 @@ def _campaign_settings_out(doc: Optional[dict]) -> dict:
         "phone_col": doc.get("phone_col", 2),
         "name_col": doc.get("name_col", 1),
         "branch_col": doc.get("branch_col", 5),
+        "online_branch_col": doc.get("online_branch_col", -1),
         "auto_sync_enabled": doc.get("auto_sync_enabled", False),
         "sync_interval_minutes": doc.get("sync_interval_minutes", 15),
         "last_sync": doc.get("last_sync"),
@@ -5496,6 +5509,8 @@ async def save_campaign_sheet_settings(payload: CampaignSheetSettingsIn,
     for idx in (payload.phone_col, payload.name_col, payload.branch_col):
         if not 0 <= idx < CAMPAIGN_COLUMN_COUNT:
             raise HTTPException(status_code=422, detail="Invalid column index")
+    if not -1 <= payload.online_branch_col < CAMPAIGN_COLUMN_COUNT:
+        raise HTTPException(status_code=422, detail="Invalid column index")
     await db.settings.update_one(
         {"type": sheet_type},
         {"$set": {
@@ -5505,6 +5520,7 @@ async def save_campaign_sheet_settings(payload: CampaignSheetSettingsIn,
             "phone_col": payload.phone_col,
             "name_col": payload.name_col,
             "branch_col": payload.branch_col,
+            "online_branch_col": payload.online_branch_col,
             "auto_sync_enabled": payload.auto_sync_enabled,
             "sync_interval_minutes": max(5, payload.sync_interval_minutes),
         }},
@@ -5553,7 +5569,9 @@ async def _do_campaign_sheet_sync(send_to_existing: bool = False, account: str =
             continue
         name = values[settings.get("name_col", 1)]
         branch = values[settings.get("branch_col", 5)]
-        route_key = "berlin" if account == "berlin" else _branch_route_key(branch)
+        ob_col = settings.get("online_branch_col", -1)
+        online_branch = values[ob_col] if 0 <= ob_col < len(values) else ""
+        route_key = "berlin" if account == "berlin" else _branch_route_key(branch, online_branch)
         doc_id = str(uuid.uuid4())
         await db.campaign_leads.insert_one({
             "campaign_lead_id": doc_id,
@@ -5562,6 +5580,7 @@ async def _do_campaign_sheet_sync(send_to_existing: bool = False, account: str =
             "phone": phone,
             "name": name,
             "branch": branch,
+            "online_branch": online_branch,
             "route_key": route_key,
             "dedupe_key": dedupe_key,
             "status": "new",
@@ -5620,7 +5639,7 @@ async def list_campaign_leads(
         rx = {"$regex": re.escape(search), "$options": "i"}
         query["$or"] = [{"values": rx}, {"phone": rx}]
     if branch:
-        query["route_key"] = None if branch == "none" else branch
+        query["route_key"] = None if branch == "none" else ({"$regex": "^online"} if branch == "online" else branch)
     total = await db.campaign_leads.count_documents(query)
     cursor = db.campaign_leads.find(query, {"_id": 0, "dedupe_key": 0}).sort("created_at", -1) \
         .skip((page - 1) * per_page).limit(per_page)
@@ -5647,7 +5666,7 @@ async def resend_campaign_whatsapp(lead_id: str, email: str = Query(...), passwo
     if not doc:
         raise HTTPException(status_code=404, detail="Lead not found")
     result = await send_routed_whatsapp(
-        "berlin" if account == "berlin" else _branch_route_key(doc.get("branch", "")),
+        "berlin" if account == "berlin" else _branch_route_key(doc.get("branch", ""), doc.get("online_branch", "")),
         doc.get("phone", ""), doc.get("name", ""),
         collection="campaign_leads", id_field="campaign_lead_id", doc_id=lead_id,
     )

@@ -34,6 +34,9 @@ Study-abroad consultancy site: marketing pages, lead capture, WhatsApp (AiSensy)
 - Berlin: all Berlin landing-page leads (source university_change) + Berlin-login Campaign Leads sheet rows send vx_counselling_final (name only) via Berlin AiSensy account. Campaign Leads tab now per-account (india / berlin).
 - AiSensy keys read from env AISENSY_API_KEY / AISENSY_API_KEY_UC (hardcoded fallback). GTM-5QWK2XNH already in index.html.
 
+## Iteration 5 (Jun 2026)
+- Campaign sheet: optional "online branch" column; Online rows route to online_jammu / online_pathankot / online_amritsar / online_ludhiana (also detects "Online - Jammu" in Preferred Branch); no branch -> visaxpert_online_counselling. Study Abroad form unchanged (offline keeps visaxpert_website).
+
 ## Backlog
 - P1: Move hardcoded AiSensy keys to env/secrets.
 - P1: Dashboard Website stat counts only source=website (homepage source not counted) — pre-existing.

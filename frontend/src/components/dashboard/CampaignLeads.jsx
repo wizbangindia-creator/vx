@@ -186,7 +186,7 @@ function Shell({ title, onClose, children }) {
 function CampaignSheetSettings({ credentials, settings, onClose, onSaved }) {
   const [url, setUrl] = useState(settings.sheet_url);
   const [columns, setColumns] = useState(settings.columns);
-  const [roles, setRoles] = useState({ phone_col: settings.phone_col, name_col: settings.name_col, branch_col: settings.branch_col });
+  const [roles, setRoles] = useState({ phone_col: settings.phone_col, name_col: settings.name_col, branch_col: settings.branch_col, online_branch_col: settings.online_branch_col ?? -1 });
   const [auto, setAuto] = useState(settings.auto_sync_enabled);
   const [interval, setIntervalMin] = useState(settings.sync_interval_minutes);
   const [headers, setHeaders] = useState([]);
@@ -226,10 +226,11 @@ function CampaignSheetSettings({ credentials, settings, onClose, onSaved }) {
     setBusy(false);
   };
 
-  const roleSelect = (key, label) => (
+  const roleSelect = (key, label, allowNone = false) => (
     <label className="text-sm">
       <span className="block text-slate-600 mb-1">{label}</span>
       <select value={roles[key]} onChange={(e) => setRoles({ ...roles, [key]: Number(e.target.value) })} className="w-full px-3 py-2 border border-slate-200 rounded-lg" data-testid={`role-${key}`}>
+        {allowNone && <option value={-1}>— none —</option>}
         {columns.map((c, i) => <option key={i} value={i}>{i + 1}. {c.heading || `Column ${i + 1}`}</option>)}
       </select>
     </label>
@@ -257,10 +258,11 @@ function CampaignSheetSettings({ credentials, settings, onClose, onSaved }) {
         ))}
       </div>
 
-      <div className="grid sm:grid-cols-3 gap-3 mb-6">
+      <div className="grid sm:grid-cols-2 gap-3 mb-6">
         {roleSelect("name_col", "Which column is the name?")}
         {roleSelect("phone_col", "Which column is the phone?")}
         {roleSelect("branch_col", "Which column is Preferred Branch?")}
+        {roleSelect("online_branch_col", "For Online rows, which column has the branch?", true)}
       </div>
 
       <div className="flex flex-wrap items-center gap-4 mb-4 text-sm">
@@ -290,7 +292,11 @@ const ROUTE_LABELS = [
   ["pathankot", "Sheet · Pathankot"],
   ["ludhiana", "Sheet · Ludhiana"],
   ["amritsar", "Sheet · Amritsar"],
-  ["online", "Sheet · Online"],
+  ["online", "Sheet · Online (no branch)"],
+  ["online_jammu", "Sheet · Online + Jammu"],
+  ["online_pathankot", "Sheet · Online + Pathankot"],
+  ["online_amritsar", "Sheet · Online + Amritsar"],
+  ["online_ludhiana", "Sheet · Online + Ludhiana"],
 ];
 const BERLIN_ROUTES = [["berlin", "Berlin page & Berlin sheet"]];
 
