@@ -5651,14 +5651,45 @@ async def list_campaign_leads(
         d["created_at"] = d["created_at"].isoformat() if isinstance(d.get("created_at"), datetime) else d.get("created_at")
         items.append(d)
     settings = _campaign_settings_out(await db.settings.find_one({"type": _sheet_type(account)}))
+    skipped_count = await db.campaign_leads.count_documents(
+        {"whatsapp.status": "skipped", "phone": {"$nin": ["", None]}, **_account_query(account)})
     return {
         "account": account,
+        "skipped_count": skipped_count,
         "headings": [c.get("heading") or f"Column {i + 1}" for i, c in enumerate(settings["columns"])],
         "items": items,
         "total": total,
         "page": page,
         "per_page": per_page,
     }
+
+
+@api_router.post("/dashboard/campaign-leads/send-skipped")
+async def send_skipped_campaign_leads(email: str = Query(...), password: str = Query(...)):
+    user = _require_india_access(email, password)
+    account = _account_of(user)
+    docs = await db.campaign_leads.find(
+        {"whatsapp.status": "skipped", "phone": {"$nin": ["", None]}, **_account_query(account)},
+        {"_id": 0, "campaign_lead_id": 1, "phone": 1, "name": 1, "branch": 1, "online_branch": 1},
+    ).to_list(5000)
+    ids = [d["campaign_lead_id"] for d in docs]
+    await db.campaign_leads.update_many(
+        {"campaign_lead_id": {"$in": ids}},
+        {"$set": {"whatsapp": {"template": "", "status": "queued", "error": "", "at": datetime.now(timezone.utc).isoformat()}}},
+    )
+
+    async def _run():
+        for d in docs:
+            route = "berlin" if account == "berlin" else _branch_route_key(d.get("branch", ""), d.get("online_branch", ""))
+            try:
+                await send_routed_whatsapp(route, d["phone"], d.get("name", ""), collection="campaign_leads",
+                                           id_field="campaign_lead_id", doc_id=d["campaign_lead_id"])
+            except Exception as e:
+                logger.error(f"send-skipped failed for {d['campaign_lead_id']}: {e}")
+            await asyncio.sleep(0.5)
+
+    asyncio.create_task(_run())
+    return {"success": True, "queued": len(docs)}
 
 
 @api_router.post("/dashboard/campaign-leads/{lead_id}/resend")

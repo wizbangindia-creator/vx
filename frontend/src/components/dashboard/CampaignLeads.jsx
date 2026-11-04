@@ -21,6 +21,7 @@ const WA_STYLE = {
   sent: "bg-green-100 text-green-700",
   failed: "bg-red-100 text-red-700",
   skipped: "bg-slate-100 text-slate-500",
+  queued: "bg-amber-100 text-amber-700",
 };
 
 function WaBadge({ wa }) {
@@ -76,6 +77,16 @@ export default function CampaignLeadsManager({ credentials }) {
     } catch (e) { toast.error(errMsg(e)); }
   };
 
+  const sendSkipped = async () => {
+    if (!window.confirm(`Send WhatsApp to ${data.skipped_count} skipped leads now?`)) return;
+    try {
+      const res = await axios.post(`${API}/dashboard/campaign-leads/send-skipped?${auth(credentials)}`);
+      toast.success(`Sending to ${res.data.queued} leads — statuses update in a moment`);
+      load();
+      setTimeout(load, Math.min(4000 + res.data.queued * 600, 30000));
+    } catch (e) { toast.error(errMsg(e)); }
+  };
+
   const remove = async (id) => {
     if (!window.confirm("Delete this campaign lead?")) return;
     try {
@@ -102,6 +113,11 @@ export default function CampaignLeadsManager({ credentials }) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          {data.skipped_count > 0 && (
+            <button onClick={sendSkipped} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-600 text-white text-sm hover:bg-green-700" data-testid="send-skipped-btn">
+              <Send size={15} /> Send all skipped ({data.skipped_count})
+            </button>
+          )}
           <button onClick={() => setShowRoutes(true)} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 text-sm hover:bg-slate-50" data-testid="wa-routes-btn">
             <MessageCircle size={15} /> WhatsApp templates
           </button>
