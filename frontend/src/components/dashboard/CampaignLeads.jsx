@@ -334,6 +334,11 @@ function WaRoutesModal({ credentials, berlin, onClose }) {
               Templates use the student's name as variable {"{{1}}"}
             </label>
           )}
+          {cfg.key_hint && (
+            <p className="text-xs text-slate-500 mb-4" data-testid="wa-key-hint">
+              AiSensy key in use ends with <span className="font-mono font-semibold">{berlin ? cfg.key_hint.berlin : cfg.key_hint.india}</span> — it should match the key in AiSensy → Manage → API Key.
+            </p>
+          )}
           <div className="flex justify-end gap-2">
             <button onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-200 text-sm">Cancel</button>
             <button onClick={save} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm" data-testid="wa-routes-save-btn">Save</button>
