@@ -5445,8 +5445,10 @@ async def get_wa_routes(email: str = Query(...), password: str = Query(...)):
 
 @api_router.post("/dashboard/wa-routes")
 async def save_wa_routes(payload: WaRoutesIn, email: str = Query(...), password: str = Query(...)):
-    _require_india_access(email, password)
-    templates = {k: (payload.templates.get(k) or "").strip() for k in DEFAULT_WA_ROUTES}
+    user = _require_india_access(email, password)
+    current = (await _get_wa_routes())["templates"]
+    allowed = ["berlin"] if _account_of(user) == "berlin" else [k for k in DEFAULT_WA_ROUTES if k != "berlin"]
+    templates = {k: ((payload.templates.get(k) or "").strip() if k in allowed else current.get(k, "")) for k in DEFAULT_WA_ROUTES}
     await db.settings.update_one(
         {"type": "lead_wa_routes"},
         {"$set": {"type": "lead_wa_routes", "templates": templates, "send_name_param": payload.send_name_param}},
