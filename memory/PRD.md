@@ -37,6 +37,10 @@ Study-abroad consultancy site: marketing pages, lead capture, WhatsApp (AiSensy)
 ## Iteration 5 (Jun 2026)
 - Campaign sheet: optional "online branch" column; Online rows route to online_jammu / online_pathankot / online_amritsar / online_ludhiana (also detects "Online - Jammu" in Preferred Branch); no branch -> visaxpert_online_counselling. Study Abroad form unchanged (offline keeps visaxpert_website).
 
+## Iteration 6 (Jun 2026)
+- AiSensy keys hardcoded (no env override); key_hint shown in WhatsApp templates modal.
+- Campaign Leads "Send all skipped (N)" button: POST /api/dashboard/campaign-leads/send-skipped (per account, background, 0.5s spacing).
+
 ## Backlog
 - P1: Move hardcoded AiSensy keys to env/secrets.
 - P1: Dashboard Website stat counts only source=website (homepage source not counted) — pre-existing.

@@ -78,10 +78,11 @@ export default function CampaignLeadsManager({ credentials }) {
   };
 
   const sendSkipped = async () => {
-    if (!window.confirm(`Send WhatsApp to ${data.skipped_count} skipped leads now?`)) return;
+    const n = data.skipped_count;
+    if (!window.confirm(`Send WhatsApp to ${n} skipped lead${n === 1 ? "" : "s"} now?`)) return;
     try {
       const res = await axios.post(`${API}/dashboard/campaign-leads/send-skipped?${auth(credentials)}`);
-      toast.success(`Sending to ${res.data.queued} leads — statuses update in a moment`);
+      toast.success(`Sending to ${res.data.queued} lead${res.data.queued === 1 ? "" : "s"} — statuses update in a moment`);
       load();
       setTimeout(load, Math.min(4000 + res.data.queued * 600, 30000));
     } catch (e) { toast.error(errMsg(e)); }
