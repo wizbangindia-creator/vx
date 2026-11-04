@@ -41,7 +41,7 @@ WHATSAPP_TEMPLATE_NAME = os.environ.get('WHATSAPP_TEMPLATE_NAME', 'crmall')
 # WHATSAPP_PROVIDER controls which upstream WhatsApp API is hit:
 #   - "aisensy" -> AiSensy V2 Campaign API
 #   - "bsp"     -> legacy nirvachanguru Cloud-API proxy
-AISENSY_API_KEY = os.environ.get("AISENSY_API_KEY") or "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ODVlOGM0YWFlYWUyMGQ4MmM1MGRkNyIsIm5hbWUiOiJWaXNheHBlcnQgLSBUaGUgU3R1ZHkgQWJyb2FkIFNwZWNpYWwiLCJhcHBOYW1lIjoiQWlTZW5zeSIsImNsaWVudElkIjoiNjZmMjc3NjZmMTk3NTgwYjc1NTRhNjk2IiwiYWN0aXZlUGxhbiI6IkJBU0lDX01PTlRITFkiLCJpYXQiOjE3OTMyMTE1MTl9.f-vqRTtmM6raKVYn04qvrBJ-QqTqdvIk1sOl1kekXBo"
+AISENSY_API_KEY = os.environ.get("AISENSY_API_KEY") or "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ODVlOGM0YWFlYWUyMGQ4MmM1MGRkNyIsIm5hbWUiOiJWaXNheHBlcnQgLSBUaGUgU3R1ZHkgQWJyb2FkIFNwZWNpYWwiLCJhcHBOYW1lIjoiQWlTZW5zeSIsImNsaWVudElkIjoiNjZmMjc3NjZmMTk3NTgwYjc1NTRhNjk2IiwiYWN0aXZlUGxhbiI6IkJBU0lDX01PTlRITFkiLCJpYXQiOjE3OTM4MDI5Nzd9.HIofTNnf39aEvy94Q2rwa6HtUpaxD4wScWfEc7Ds6mw"
 # Dedicated AiSensy key for the Berlin (university change) page.
 AISENSY_API_KEY_UC = os.environ.get("AISENSY_API_KEY_UC") or "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZjIxZjMzNmM4ZGM0NjVmZjQ5YmUzZSIsIm5hbWUiOiJWaXNhWHBlcnQgLSBCZXJsaW4iLCJhcHBOYW1lIjoiQWlTZW5zeSIsImNsaWVudElkIjoiNjZmMjc3NjZmMTk3NTgwYjc1NTRhNjk2IiwiYWN0aXZlUGxhbiI6IkJBU0lDX01PTlRITFkiLCJpYXQiOjE3OTMyMTE0NDl9.2J7tH2aGDp-oymwOoDRJf_RI6peHjAvYciYiiVgK9C8"
 AISENSY_API_URL = "https://backend.aisensy.com/campaign/t1/api/v2"
